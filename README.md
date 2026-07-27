@@ -18,8 +18,7 @@ That's it, ssh try to solve this by having `ssh -L` / `ssh -R`, it helps but doe
 instead of dealing with this delays while production needs to be fix and the client is on the phone asking for status, 
 
 ## Second Challenge: Cybersecurity and storage, SCP intermediary host 
-You can SSH into a host — often through one or more bastions — but you need more than a
-copy a file, you need storage, access and space availabl 
+You can SSH into a host — often through one or more bastions —  but to copy a file you need access and space available
 
 ## Third Challenge: SCP lacks a Commons VFS
 Unlike systems that provide a unified virtual file system, SCP offers no way to present files and directories under a single hierarchy. Each transfer is link to a specific host and path, with no dynamic mapping or abstraction. As a result, there is no flexibility in how a user can obtain or construct a coherent view of remote files — every operation remains isolated, point‑to‑point, and disconnected from a broader namespace.
