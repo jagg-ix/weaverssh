@@ -1,0 +1,7 @@
+# Aggregate production extras. Use a narrower profile for minimal installs.
+-r core.txt
+-r mcp.txt
+-r webterm.txt
+-r tray.txt
+# vision.txt is intentionally excluded from the aggregate default because it is
+# large and platform-sensitive. Install with --profile vision when needed.

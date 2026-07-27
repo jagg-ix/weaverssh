@@ -1,0 +1,30 @@
+pki:
+  ca: /etc/nebula/ca.crt
+  cert: /etc/nebula/host.crt
+  key: /etc/nebula/host.key
+
+static_host_map:
+  "10.80.0.1":
+    - "198.51.100.10:4242"
+
+lighthouse:
+  am_lighthouse: false
+  hosts:
+    - "10.80.0.1"
+
+listen:
+  host: 0.0.0.0
+  port: 0
+
+firewall:
+  outbound:
+    - port: any
+      proto: any
+      host: any
+  inbound:
+    - port: any
+      proto: icmp
+      host: any
+    - port: 22
+      proto: tcp
+      group: weaverssh-client

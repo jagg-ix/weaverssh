@@ -1,0 +1,20 @@
+[Unit]
+Description=weaverssh local SOCKS/X11 proxy
+Documentation=file:/usr/share/doc/weaverssh/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=WEAVERSSH_SOCKS_PORT=1080
+Environment=WEAVERSSH_AGENT_ENDPOINT=127.0.0.1:6000
+Environment=WEAVERSSH_LOG_LEVEL=info
+EnvironmentFile=-%h/.config/weaverssh/wv-socks.env
+ExecStart=/usr/bin/wv-socks -port ${WEAVERSSH_SOCKS_PORT} -agent ${WEAVERSSH_AGENT_ENDPOINT} -loglevel ${WEAVERSSH_LOG_LEVEL}
+Restart=on-failure
+RestartSec=2s
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,80 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "weaverssh"
+version = "0.1.0"
+description = "Python support tooling for weaverssh production setup, packaging, and coordination"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  {name = "weaverssh maintainers", email = "noreply@example.invalid"}
+]
+keywords = ["ssh", "x11", "weaverssh", "packaging", "mcp"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: System Administrators",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: System :: Systems Administration"
+]
+dependencies = []
+
+[project.optional-dependencies]
+core = []
+mcp = [
+  "mcp>=1.9",
+  "uvicorn>=0.30",
+  "anyio>=4.0"
+]
+webterm = [
+  "starlette>=0.37",
+  "uvicorn>=0.30",
+  "pillow>=10.0",
+  "websocket-client>=1.8",
+  "paho-mqtt>=2.1"
+]
+tray = [
+  "pillow>=10.0",
+  "pystray>=0.19"
+]
+vision = [
+  "numpy>=1.26",
+  "opencv-python>=4.9",
+  "aiortc>=1.8",
+  "av>=12.0",
+  "pyautogui>=0.9",
+  "pyobjc-framework-Quartz>=10.0; platform_system == 'Darwin'"
+]
+all = [
+  "mcp>=1.9",
+  "uvicorn>=0.30",
+  "anyio>=4.0",
+  "starlette>=0.37",
+  "pillow>=10.0",
+  "websocket-client>=1.8",
+  "paho-mqtt>=2.1",
+  "pystray>=0.19"
+]
+
+[project.scripts]
+weaverssh-py = "weaverssh_support.cli:main"
+wv-py = "weaverssh_support.cli:main"
+
+[project.urls]
+Homepage = "https://weaverssh.com"
+Source = "https://github.com/jagg-ix/weaverssh"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["python", "."]
+include = ["weaverssh_support*", "tools", "tools.packaging", "tools.verification", "tools.verification.end_user_usecases"]
+exclude = ["tests*", "docs*", "verification*", "build*", "dist*"]
+
+[tool.setuptools.package-data]
+weaverssh_support = ["resources/*.json"]
+"tools.packaging" = ["python_distribution_manifest.json"]

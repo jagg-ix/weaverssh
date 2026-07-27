@@ -1,0 +1,35 @@
+{
+  "cases": [
+    {
+      "id": "c1-linux-basic",
+      "platform": "linux",
+      "host_spec": "203.0.113.20",
+      "user": "root"
+    },
+    {
+      "id": "c2-zos-alias",
+      "platform": "z/os",
+      "host_spec": "zos-main=203.0.113.10",
+      "user": "kb"
+    },
+    {
+      "id": "c3-solaris-alias",
+      "platform": "sunos",
+      "host_spec": "edge-sun=10.0.0.12",
+      "user": ""
+    },
+    {
+      "id": "c4-generic-spaces",
+      "platform": " generic ",
+      "host_spec": "  host-a = 10.10.10.10 ",
+      "user": "jaggix"
+    },
+    {
+      "id": "c5-missing-host",
+      "platform": "linux",
+      "host_spec": "broken=",
+      "user": "root"
+    }
+  ]
+}
+

@@ -1,0 +1,11 @@
+# Host * defaults are folded into every concrete host.
+Host *
+    User defaultuser
+    IdentityFile ~/.ssh/id_default
+
+Host db
+    HostName db.internal
+    Port 5432
+
+Host cache
+    HostName cache.internal

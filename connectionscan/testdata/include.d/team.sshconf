@@ -1,0 +1,3 @@
+Host teambox
+    HostName team.internal
+    User teamuser

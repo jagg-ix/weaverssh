@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/vfs-encrypted-file-header.v1.schema.json",
+  "title": "WeaverSSH Encrypted VFS File Header",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "file_id", "content_algorithm", "chunk_size", "plaintext_size", "plaintext_sha256", "nonce_prefix", "mode", "recipients", "header_mac"],
+  "properties": {
+    "version": {"const": "weaverssh.vfs-encrypted-file.v1"},
+    "file_id": {"type": "string", "pattern": "^[0-9a-f]{32}$"},
+    "content_algorithm": {"const": "aes-256-gcm-chunked"},
+    "chunk_size": {"type": "integer", "minimum": 4096, "maximum": 4194304},
+    "plaintext_size": {"type": "integer", "minimum": 0},
+    "plaintext_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nonce_prefix": {"type": "string", "pattern": "^[A-Za-z0-9+/]{6}==$"},
+    "mode": {"type": "integer", "minimum": 0, "maximum": 511},
+    "recipients": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {"$ref": "#/$defs/recipient"}
+    },
+    "header_mac": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$defs": {
+    "recipient": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key_id", "node_id", "algorithm", "ephemeral_public_key", "nonce", "wrapped_data_key"],
+      "properties": {
+        "key_id": {"type": "string", "pattern": "^x25519-[0-9a-f]{32}$"},
+        "node_id": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000\\r\\n]+$"},
+        "algorithm": {"const": "x25519-hkdf-sha256-aes-256-gcm"},
+        "ephemeral_public_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"},
+        "nonce": {"type": "string", "pattern": "^[A-Za-z0-9+/]{16}$"},
+        "wrapped_data_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{64}$"}
+      }
+    }
+  }
+}

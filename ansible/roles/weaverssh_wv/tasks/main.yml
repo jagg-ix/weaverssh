@@ -1,0 +1,104 @@
+---
+- name: Validate weaverssh target type
+  ansible.builtin.assert:
+    that:
+      - weaverssh_target_type in ['posix', 'docker', 'kubernetes']
+    fail_msg: "weaverssh_target_type must be one of: posix, docker, kubernetes"
+
+- name: Refuse unsupported Windows targets in POSIX role path
+  ansible.builtin.assert:
+    that:
+      - ansible_system | lower not in ['win32nt', 'windows']
+    fail_msg: >-
+      weaverssh_wv posix mode uses POSIX modules. Use a Windows/WinRM role path
+      for Windows targets because it requires win_get_url/win_unzip/PowerShell.
+  when: weaverssh_target_type == 'posix'
+
+- name: Validate Docker target inputs
+  ansible.builtin.assert:
+    that:
+      - weaverssh_docker_container | length > 0
+    fail_msg: "Set weaverssh_docker_container for weaverssh_target_type=docker"
+  when: weaverssh_target_type == 'docker'
+
+- name: Validate Kubernetes target inputs
+  ansible.builtin.assert:
+    that:
+      - weaverssh_kubernetes_pod | length > 0
+      - weaverssh_kubernetes_namespace | length > 0
+    fail_msg: "Set weaverssh_kubernetes_namespace and weaverssh_kubernetes_pod for weaverssh_target_type=kubernetes"
+  when: weaverssh_target_type == 'kubernetes'
+
+- name: Build optional kubectl container argument
+  ansible.builtin.set_fact:
+    weaverssh_kubectl_container_arg: "{{ ('-c ' ~ weaverssh_kubernetes_container) if weaverssh_kubernetes_container else '' }}"
+  when: weaverssh_target_type == 'kubernetes'
+
+- name: Detect Docker container architecture
+  ansible.builtin.command: >-
+    {{ weaverssh_docker_runtime }} exec {{ weaverssh_docker_container }}
+    {{ weaverssh_container_shell }} -lc 'uname -m'
+  register: weaverssh_container_uname_arch
+  changed_when: false
+  delegate_to: localhost
+  when:
+    - weaverssh_target_type == 'docker'
+    - weaverssh_target_arch | length == 0
+
+- name: Detect Kubernetes pod architecture
+  ansible.builtin.command: >-
+    {{ weaverssh_kubectl }} -n {{ weaverssh_kubernetes_namespace }} exec {{ weaverssh_kubernetes_pod }}
+    {{ weaverssh_kubectl_container_arg | default('') }} -- {{ weaverssh_container_shell }} -lc 'uname -m'
+  register: weaverssh_container_uname_arch
+  changed_when: false
+  delegate_to: localhost
+  when:
+    - weaverssh_target_type == 'kubernetes'
+    - weaverssh_target_arch | length == 0
+
+- name: Resolve weaverssh target OS
+  ansible.builtin.set_fact:
+    weaverssh_resolved_os: >-
+      {{ weaverssh_target_os if weaverssh_target_os else
+         ('linux' if weaverssh_target_type in ['docker', 'kubernetes'] else
+         ({'Linux': 'linux', 'Darwin': 'darwin', 'FreeBSD': 'freebsd', 'OpenBSD': 'openbsd'}).get(ansible_system, ansible_system | lower)) }}
+
+- name: Resolve weaverssh architecture source
+  ansible.builtin.set_fact:
+    weaverssh_arch_source: >-
+      {{ weaverssh_target_arch if weaverssh_target_arch else
+         ((weaverssh_container_uname_arch.stdout | default(ansible_architecture)) | trim) }}
+
+- name: Resolve weaverssh target architecture
+  ansible.builtin.set_fact:
+    weaverssh_resolved_arch: >-
+      {{ ({'x86_64': 'amd64', 'amd64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64', 'i386': '386', 'i686': '386', 'armv7l': 'armv7', 'armv6l': 'armv6', 'ppc64le': 'ppc64le', 's390x': 's390x', 'riscv64': 'riscv64'}).get(weaverssh_arch_source, weaverssh_arch_source | lower) }}
+
+- name: Build weaverssh archive facts
+  ansible.builtin.set_fact:
+    weaverssh_target_label: "{{ weaverssh_resolved_os }}-{{ weaverssh_resolved_arch }}"
+    weaverssh_package_root: "weaverssh-{{ weaverssh_version }}-{{ weaverssh_release }}-{{ weaverssh_resolved_os }}-{{ weaverssh_resolved_arch }}"
+    weaverssh_archive_name: "weaverssh-{{ weaverssh_version }}-{{ weaverssh_release }}-{{ weaverssh_resolved_os }}-{{ weaverssh_resolved_arch }}.tar.gz"
+    weaverssh_checksum_value: "{{ weaverssh_archive_checksum | regex_replace('^sha256:', '') }}"
+    weaverssh_effective_install_dir: "{{ weaverssh_install_dir if weaverssh_target_type == 'posix' else weaverssh_container_install_dir }}"
+
+- name: Resolve weaverssh archive URL
+  ansible.builtin.set_fact:
+    weaverssh_effective_archive_url: >-
+      {{ weaverssh_archive_url if weaverssh_archive_url else weaverssh_release_base_url ~ '/' ~ weaverssh_archive_name }}
+
+- name: Install wv on POSIX SSH target
+  ansible.builtin.include_tasks: install_posix.yml
+  when: weaverssh_target_type == 'posix'
+
+- name: Prepare controller-local binary for container runtime target
+  ansible.builtin.include_tasks: prepare_controller_binary.yml
+  when: weaverssh_target_type in ['docker', 'kubernetes']
+
+- name: Install wv into Docker container
+  ansible.builtin.include_tasks: install_docker.yml
+  when: weaverssh_target_type == 'docker'
+
+- name: Install wv into Kubernetes pod
+  ansible.builtin.include_tasks: install_kubernetes.yml
+  when: weaverssh_target_type == 'kubernetes'

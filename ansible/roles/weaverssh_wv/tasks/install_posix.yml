@@ -1,0 +1,81 @@
+---
+- name: Create weaverssh install and cache directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ weaverssh_install_dir }}"
+    - "{{ weaverssh_cache_dir }}"
+
+- name: Copy local weaverssh archive from controller
+  ansible.builtin.copy:
+    src: "{{ weaverssh_archive_path }}"
+    dest: "{{ weaverssh_cache_dir }}/{{ weaverssh_archive_name }}"
+    mode: "0644"
+  when: weaverssh_archive_path | length > 0
+
+- name: Download weaverssh archive from release URL
+  ansible.builtin.get_url:
+    url: "{{ weaverssh_effective_archive_url }}"
+    dest: "{{ weaverssh_cache_dir }}/{{ weaverssh_archive_name }}"
+    mode: "0644"
+    checksum: "{{ ('sha256:' ~ weaverssh_checksum_value) if weaverssh_checksum_value else omit }}"
+  when: weaverssh_archive_path | length == 0
+
+- name: Verify local/copy archive checksum when provided
+  ansible.builtin.stat:
+    path: "{{ weaverssh_cache_dir }}/{{ weaverssh_archive_name }}"
+    checksum_algorithm: sha256
+  register: weaverssh_archive_stat
+  when: weaverssh_checksum_value | length > 0
+
+- name: Assert copied archive checksum
+  ansible.builtin.assert:
+    that:
+      - weaverssh_archive_stat.stat.checksum == weaverssh_checksum_value
+    fail_msg: "wv archive checksum mismatch for {{ weaverssh_archive_name }}"
+  when: weaverssh_checksum_value | length > 0
+
+- name: Extract weaverssh archive on remote host
+  ansible.builtin.unarchive:
+    src: "{{ weaverssh_cache_dir }}/{{ weaverssh_archive_name }}"
+    dest: "{{ weaverssh_cache_dir }}"
+    remote_src: true
+    creates: "{{ weaverssh_cache_dir }}/{{ weaverssh_package_root }}/bin/{{ weaverssh_binary_name }}"
+
+- name: Install wv binary into user home
+  ansible.builtin.copy:
+    src: "{{ weaverssh_cache_dir }}/{{ weaverssh_package_root }}/bin/{{ weaverssh_binary_name }}"
+    dest: "{{ weaverssh_install_dir }}/wv"
+    remote_src: true
+    mode: "0755"
+
+- name: Optionally add weaverssh install dir to shell startup files
+  ansible.builtin.lineinfile:
+    path: "{{ ansible_env.HOME }}/{{ item }}"
+    create: true
+    mode: "0644"
+    line: "export PATH=\"{{ weaverssh_install_dir }}:$PATH\""
+  loop: "{{ weaverssh_shell_rc_files }}"
+  when: weaverssh_update_shell_rc | bool
+
+- name: Smoke test wv version
+  ansible.builtin.command: "{{ weaverssh_install_dir }}/wv version"
+  register: weaverssh_version_result
+  changed_when: false
+  when: weaverssh_run_smoke_test | bool
+
+- name: Smoke test wv help
+  ansible.builtin.command: "{{ weaverssh_install_dir }}/wv help"
+  changed_when: false
+  when: weaverssh_run_smoke_test | bool
+
+- name: Report weaverssh install result
+  ansible.builtin.debug:
+    msg:
+      install_dir: "{{ weaverssh_install_dir }}"
+      binary: "{{ weaverssh_install_dir }}/wv"
+      target: "{{ weaverssh_target_label }}"
+      mode: "posix"
+      version_output: "{{ weaverssh_version_result.stdout | default('smoke disabled') }}"

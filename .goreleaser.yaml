@@ -1,0 +1,119 @@
+# GoReleaser configuration for weaverssh.
+# Docs: https://goreleaser.com  —  validate locally with `goreleaser check`.
+version: 2
+
+project_name: weaverssh
+
+before:
+  hooks:
+    - go mod download
+    # Generate third-party attribution dynamically at release time (nothing is
+    # vendored): the script go-run's go-licenses and reports the modules linked
+    # into wv. THIRD_PARTY_NOTICES.md is gitignored and rebuilt each release.
+    - sh scripts/gen-third-party-notices.sh
+
+builds:
+  - id: wv
+    main: ./cmd/wv
+    binary: wv
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.buildVersion={{ .Version }}
+      - -X main.buildCommit={{ .ShortCommit }}
+      - -X main.buildDate={{ .CommitDate }}
+      - -X main.buildTarget={{ .Os }}/{{ .Arch }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    # Explicit target list (cgo-free, all verified to compile). AIX (ppc64) and
+    # Solaris are intentionally absent: neither builds without CGO today —
+    # x/sys/unix has no Flock on AIX, and socketengine has no Solaris poller.
+    targets:
+      - linux_amd64
+      - linux_arm64
+      - linux_386
+      - linux_ppc64le
+      - linux_s390x
+      - linux_riscv64
+      - darwin_amd64
+      - darwin_arm64
+      - windows_amd64
+      - windows_arm64
+      - freebsd_amd64
+      - freebsd_arm64
+      - openbsd_amd64
+      - openbsd_arm64
+      - netbsd_amd64
+      - netbsd_arm64
+
+archives:
+  - id: wv
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - THIRD_PARTY_NOTICES.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+
+nfpms:
+  - id: packages
+    package_name: weaverssh
+    vendor: weaverssh
+    homepage: https://github.com/jagg-ix/weaverssh
+    maintainer: weaverssh <jagg-ix@users.noreply.github.com>
+    description: A bounded, bidirectional data channel over the SSH session you already have.
+    license: Apache-2.0
+    formats:
+      - deb
+      - rpm
+      - apk
+    bindir: /usr/bin
+    contents:
+      - src: LICENSE
+        dst: /usr/share/doc/weaverssh/LICENSE
+      - src: THIRD_PARTY_NOTICES.md
+        dst: /usr/share/doc/weaverssh/THIRD_PARTY_NOTICES.md
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  github:
+    owner: jagg-ix
+    name: weaverssh
+  # Draft so you review the artifacts before publishing (and before the repo is
+  # public). Flip to false once you are happy with the pipeline.
+  draft: true
+  prerelease: auto
+  name_template: "weaverssh {{ .Version }}"
+
+# Optional Homebrew tap — enable by creating a jagg-ix/homebrew-tap repo,
+# adding a HOMEBREW_TAP_TOKEN secret, and uncommenting:
+# brews:
+#   - repository:
+#       owner: jagg-ix
+#       name: homebrew-tap
+#       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+#     homepage: https://github.com/jagg-ix/weaverssh
+#     description: A bounded, bidirectional data channel over the SSH session you already have.
+#     license: Apache-2.0

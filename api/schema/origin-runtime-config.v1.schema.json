@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/origin-runtime-config.v1.schema.json",
+  "title": "WeaverSSH Origin Runtime Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "kind", "guest_root"],
+  "properties": {
+    "version": {"const": "weaverssh.origin-runtime.v1"},
+    "name": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$"},
+    "kind": {"enum": ["native", "wsl", "docker", "kubernetes", "vm"]},
+    "guest_root": {"type": "string", "minLength": 1, "maxLength": 4096},
+    "host_root": {"type": "string", "maxLength": 4096},
+    "read_only": {"type": "boolean", "default": false},
+    "path_mappings": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {"$ref": "#/$defs/pathMapping"}
+    },
+    "wsl": {"$ref": "#/$defs/wsl"},
+    "docker": {"$ref": "#/$defs/docker"},
+    "kubernetes": {"$ref": "#/$defs/kubernetes"},
+    "vm": {"$ref": "#/$defs/vm"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "native"}}},
+      "then": {"not": {"anyOf": [{"required": ["wsl"]}, {"required": ["docker"]}, {"required": ["kubernetes"]}, {"required": ["vm"]}]}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "wsl"}}},
+      "then": {"required": ["wsl"], "not": {"anyOf": [{"required": ["docker"]}, {"required": ["kubernetes"]}, {"required": ["vm"]}]}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "docker"}}},
+      "then": {"required": ["docker"], "not": {"anyOf": [{"required": ["wsl"]}, {"required": ["kubernetes"]}, {"required": ["vm"]}]}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "kubernetes"}}},
+      "then": {"required": ["kubernetes"], "not": {"anyOf": [{"required": ["wsl"]}, {"required": ["docker"]}, {"required": ["vm"]}]}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "vm"}}},
+      "then": {"required": ["vm"], "not": {"anyOf": [{"required": ["wsl"]}, {"required": ["docker"]}, {"required": ["kubernetes"]}]}}
+    }
+  ],
+  "$defs": {
+    "pathMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "guest"],
+      "properties": {
+        "host": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "guest": {"type": "string", "minLength": 1, "maxLength": 4096}
+      }
+    },
+    "wsl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["distribution"],
+      "properties": {
+        "distribution": {"type": "string", "minLength": 1, "maxLength": 256},
+        "binary": {"type": "string", "maxLength": 4096},
+        "env_binary": {"type": "string", "maxLength": 4096}
+      }
+    },
+    "docker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["container"],
+      "properties": {
+        "container": {"type": "string", "minLength": 1, "maxLength": 256},
+        "binary": {"type": "string", "maxLength": 4096},
+        "user": {"type": "string", "maxLength": 256},
+        "working_directory": {"type": "string", "maxLength": 4096},
+        "require_running": {"type": "boolean", "default": false}
+      }
+    },
+    "kubernetes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "binary": {"type": "string", "maxLength": 4096},
+        "kubeconfig": {"type": "string", "maxLength": 4096},
+        "context": {"type": "string", "maxLength": 256},
+        "namespace": {"type": "string", "maxLength": 256, "default": "default"},
+        "pod": {"type": "string", "maxLength": 256},
+        "selector": {"type": "string", "maxLength": 1024},
+        "container": {"type": "string", "maxLength": 256},
+        "expected_node": {"type": "string", "maxLength": 256},
+        "env_binary": {"type": "string", "maxLength": 4096},
+        "require_running": {"type": "boolean", "default": false},
+        "require_ready": {"type": "boolean", "default": false},
+        "allow_host_path_discovery": {"type": "boolean", "default": false}
+      },
+      "oneOf": [
+        {"required": ["pod"], "not": {"required": ["selector"]}},
+        {"required": ["selector"], "not": {"required": ["pod"]}}
+      ]
+    },
+    "vm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["driver", "id"],
+      "properties": {
+        "driver": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,128}$"},
+        "id": {"type": "string", "minLength": 1, "maxLength": 256}
+      }
+    }
+  }
+}

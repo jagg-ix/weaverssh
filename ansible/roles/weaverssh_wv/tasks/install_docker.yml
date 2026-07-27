@@ -1,0 +1,48 @@
+---
+- name: Create install directory inside Docker container
+  ansible.builtin.command: >-
+    {{ weaverssh_docker_runtime }} exec {{ weaverssh_docker_container }}
+    {{ weaverssh_container_shell }} -lc 'mkdir -p {{ weaverssh_container_install_dir }}'
+  changed_when: true
+  delegate_to: localhost
+
+- name: Copy wv binary into Docker container
+  ansible.builtin.command: >-
+    {{ weaverssh_docker_runtime }} cp {{ weaverssh_controller_wv_path }}
+    {{ weaverssh_docker_container }}:{{ weaverssh_container_install_dir }}/wv
+  changed_when: true
+  delegate_to: localhost
+
+- name: Mark wv executable inside Docker container
+  ansible.builtin.command: >-
+    {{ weaverssh_docker_runtime }} exec {{ weaverssh_docker_container }}
+    {{ weaverssh_container_shell }} -lc 'chmod 0755 {{ weaverssh_container_install_dir }}/wv'
+  changed_when: true
+  delegate_to: localhost
+
+- name: Smoke test Docker wv version
+  ansible.builtin.command: >-
+    {{ weaverssh_docker_runtime }} exec {{ weaverssh_docker_container }}
+    {{ weaverssh_container_install_dir }}/wv version
+  register: weaverssh_docker_version_result
+  changed_when: false
+  delegate_to: localhost
+  when: weaverssh_run_smoke_test | bool
+
+- name: Smoke test Docker wv help
+  ansible.builtin.command: >-
+    {{ weaverssh_docker_runtime }} exec {{ weaverssh_docker_container }}
+    {{ weaverssh_container_install_dir }}/wv help
+  changed_when: false
+  delegate_to: localhost
+  when: weaverssh_run_smoke_test | bool
+
+- name: Report Docker weaverssh install result
+  ansible.builtin.debug:
+    msg:
+      install_dir: "{{ weaverssh_container_install_dir }}"
+      binary: "{{ weaverssh_container_install_dir }}/wv"
+      target: "{{ weaverssh_target_label }}"
+      mode: "docker"
+      container: "{{ weaverssh_docker_container }}"
+      version_output: "{{ weaverssh_docker_version_result.stdout | default('smoke disabled') }}"

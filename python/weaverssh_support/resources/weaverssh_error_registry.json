@@ -1,0 +1,564 @@
+{
+  "codes": [
+    {
+      "code": "WV-ADP-001",
+      "description": "A helper tool or platform SSH client is being used as the primary tunnel/data plane instead of a weaverssh endpoint adapter.",
+      "developer_action": "Update guard tests and tunnel policy if a new adapter is added.",
+      "kb_slugs": [
+        "external-tool-adapters"
+      ],
+      "kb_titles": [
+        "External tool adapter attempted to replace weaverssh data plane"
+      ],
+      "kind": "fault",
+      "operator_action": "Reject the plan; reframe the tool as loopback adapter/probe terminating at wv endpoint.",
+      "related_commands": "python3 tools/verification/verify_weaverssh_tunnel_policy.py",
+      "retryable": false,
+      "severity": "fatal",
+      "source_refs": "docs/specs/tunnel_mechanism_policy.md",
+      "status": "active",
+      "subsystem": "adapter",
+      "tags": "adapter,socat,nc,plink,policy",
+      "title": "External adapter attempted to own data plane",
+      "verification": "Tunnel-policy guard passes and adapter plan shows data_plane_owner=weaverssh."
+    },
+    {
+      "code": "WV-AUT-001",
+      "description": "A runtime cryptographic proof required for relay/transfer/service activation was missing or failed verification.",
+      "developer_action": "Return structured verifier reason without leaking secret material.",
+      "kb_slugs": [
+        "authproof-troubleshooting"
+      ],
+      "kb_titles": [
+        "Runtime cryptographic proof failed"
+      ],
+      "kind": "fault",
+      "operator_action": "Generate fresh proof with correct capability and chain binding; fail closed if not possible.",
+      "related_commands": "pytest -q tests -k authproof",
+      "retryable": false,
+      "severity": "fatal",
+      "source_refs": "docs/specs/runtime_cryptographic_proof.md",
+      "status": "active",
+      "subsystem": "authproof",
+      "tags": "authproof,crypto,security",
+      "title": "Authproof missing or invalid",
+      "verification": "Accepted proof includes required capability and relay starts only after verification."
+    },
+    {
+      "code": "WV-AUT-002",
+      "description": "The planned authority source is controllable by root on the remote host, so it cannot enforce remote-root-resistant policy.",
+      "developer_action": "Model and runtime must fail closed for strict remote-root-resistant claims.",
+      "kb_slugs": [
+        "authproof-troubleshooting"
+      ],
+      "kb_titles": [
+        "Runtime cryptographic proof failed"
+      ],
+      "kind": "fault",
+      "operator_action": "Move authority to workstation/peer outside remote-root authority or lower expectations explicitly for non-strict testing.",
+      "related_commands": "wv relay ... | pytest -q tests -k authority",
+      "retryable": false,
+      "severity": "fatal",
+      "source_refs": "docs/specs/authorization_root_policy.md",
+      "status": "active",
+      "subsystem": "authproof",
+      "tags": "authproof,root,authority",
+      "title": "Authority material is in remote-root domain",
+      "verification": "Policy report shows authority_outside_remote_root=true before activation."
+    },
+    {
+      "code": "WV-CFG-001",
+      "description": "wv could not determine an active SSH connection profile or required profile fields.",
+      "developer_action": "Make profile lookup error include searched paths and selected setup source.",
+      "kb_slugs": [
+        "connection-profile-missing"
+      ],
+      "kb_titles": [
+        "Connection profile is missing or inactive"
+      ],
+      "kind": "error",
+      "operator_action": "Run wv connection list/current, create or select a profile, then retry.",
+      "related_commands": "wv connection list | wv connection current | wv connection set <name> --host <host> --user <user> --active",
+      "retryable": true,
+      "severity": "error",
+      "source_refs": "README.md; cmd/wv connection commands",
+      "status": "active",
+      "subsystem": "configuration",
+      "tags": "configuration,profile,connection",
+      "title": "No active connection profile",
+      "verification": "wv connection current returns selected profile with host and user."
+    },
+    {
+      "code": "WV-CFG-002",
+      "description": "A selected profile exists but declares a capability version not supported by the current wv binary.",
+      "developer_action": "Keep capability migrations monotonic and add compatibility tests for each profile version.",
+      "kb_slugs": [
+        "connection-profile-missing"
+      ],
+      "kb_titles": [
+        "Connection profile is missing or inactive"
+      ],
+      "kind": "error",
+      "operator_action": "Run wv connection capabilities and upgrade/downgrade explicitly after reviewing loss flags.",
+      "related_commands": "wv connection capabilities | wv connection upgrade <name> --to <version>",
+      "retryable": true,
+      "severity": "warning",
+      "source_refs": "README.md connection upgrade/downgrade section",
+      "status": "active",
+      "subsystem": "configuration",
+      "tags": "configuration,capability,version",
+      "title": "Connection capability version mismatch",
+      "verification": "Capability list reports supported version and selected profile version."
+    },
+    {
+      "code": "WV-DEP-001",
+      "description": "A required local runtime or build dependency is unavailable.",
+      "developer_action": "Ensure dependency plan names the missing command and does not silently fallback to Python-only setup.",
+      "kb_slugs": [
+        "dependency-setup"
+      ],
+      "kb_titles": [
+        "Dependency setup and native tool availability"
+      ],
+      "kind": "error",
+      "operator_action": "Run wv deps plan/status and install missing tools with home method or explicit package-manager mode.",
+      "related_commands": "wv deps status --include-build --json | wv deps install --dry-run",
+      "retryable": true,
+      "severity": "error",
+      "source_refs": "cmd/wv/deps.go; developers.md",
+      "status": "active",
+      "subsystem": "dependencies",
+      "tags": "dependencies,tooling",
+      "title": "Required dependency is missing",
+      "verification": "wv deps status reports installed or known acceptable missing optional dependency."
+    },
+    {
+      "code": "WV-DEP-002",
+      "description": "Dependency installation requires package-manager privileges or force confirmation that was not granted.",
+      "developer_action": "Keep privileged paths explicit and audit logged.",
+      "kb_slugs": [
+        "dependency-setup"
+      ],
+      "kb_titles": [
+        "Dependency setup and native tool availability"
+      ],
+      "kind": "error",
+      "operator_action": "Use home method, or rerun with explicit --method package-manager --manager NAME after reviewing plan.",
+      "related_commands": "wv deps install --method package-manager --manager apt --dry-run",
+      "retryable": true,
+      "severity": "warning",
+      "source_refs": "cmd/wv/deps.go",
+      "status": "active",
+      "subsystem": "dependencies",
+      "tags": "dependencies,privilege,package-manager",
+      "title": "Package-manager operation denied",
+      "verification": "Dependency log contains denied action and no package-manager mutation occurred."
+    },
+    {
+      "code": "WV-FUS-001",
+      "description": "Filesystem mount was requested but FUSE support is unavailable on this host.",
+      "developer_action": "Report FUSE readiness separately from VFS endpoint readiness.",
+      "kb_slugs": [
+        "vfs-fuse"
+      ],
+      "kb_titles": [
+        "9P/VFS or FUSE mount is unavailable"
+      ],
+      "kind": "error",
+      "operator_action": "Install macFUSE/libfuse where supported or use wv ls/cp instead of mounting.",
+      "related_commands": "wv status | wv ls vfs://",
+      "retryable": true,
+      "severity": "warning",
+      "source_refs": "internal/vfscli; internal/vfsmount",
+      "status": "active",
+      "subsystem": "vfs",
+      "tags": "fuse,macfuse,vfs,mount",
+      "title": "FUSE or macFUSE unavailable",
+      "verification": "wv status shows FUSE ready or workflow uses non-FUSE VFS command."
+    },
+    {
+      "code": "WV-MCP-001",
+      "description": "MCP support is configured but the listener is not alive or not exposing expected tools.",
+      "developer_action": "Status must distinguish configured, running, port open, and tool availability.",
+      "kb_slugs": [
+        "mcp-listener"
+      ],
+      "kb_titles": [
+        "MCP listener is configured but not running"
+      ],
+      "kind": "error",
+      "operator_action": "Start MCP service or update config; use logs before reporting ready.",
+      "related_commands": "wv mcp status | lsof -nP -iTCP:<port>",
+      "retryable": true,
+      "severity": "error",
+      "source_refs": "docs/weaverssh_component_inventory.md",
+      "status": "active",
+      "subsystem": "mcp",
+      "tags": ".mcp,listener,coordination",
+      "title": "MCP listener down",
+      "verification": "MCP status reports alive=true and tool list includes expected namespace."
+    },
+    {
+      "code": "WV-PKG-001",
+      "description": "A release artifact does not match its checksum/signature/provenance metadata.",
+      "developer_action": "Make verification failure explicit and include artifact/sidecar paths.",
+      "kb_slugs": [
+        "packaging-verification"
+      ],
+      "kb_titles": [
+        "Release artifact verification failed"
+      ],
+      "kind": "fault",
+      "operator_action": "Do not install; reacquire or rebuild artifact and verify again.",
+      "related_commands": "tools/packaging/verify_binary_distribution.sh --archive <archive> --checksum <sha256> --smoke",
+      "retryable": false,
+      "severity": "fatal",
+      "source_refs": "tools/packaging/build_binary_distribution.sh",
+      "status": "active",
+      "subsystem": "packaging",
+      "tags": "packaging,checksum,signature",
+      "title": "Artifact checksum or signature mismatch",
+      "verification": "verify script passes checksum/signature/smoke."
+    },
+    {
+      "code": "WV-PKG-002",
+      "description": "Homebrew Formula generation could not use the provided archive.",
+      "developer_action": "Keep formula generator validating target/version/sha256 before writing Formula.",
+      "kb_slugs": [
+        "homebrew-snap-packaging"
+      ],
+      "kb_titles": [
+        "Homebrew or Snap packaging support failed"
+      ],
+      "kind": "error",
+      "operator_action": "Generate binary-dist for darwin/linux and rerun homebrew-formula with correct archive/URL base.",
+      "related_commands": "make homebrew-formula-plan HOMEBREW_ARCHIVE=<archive>",
+      "retryable": false,
+      "severity": "error",
+      "source_refs": "tools/packaging/build_homebrew_formula.py",
+      "status": "active",
+      "subsystem": "packaging",
+      "tags": "packaging,homebrew,formula",
+      "title": "Homebrew Formula archive invalid",
+      "verification": "homebrew-formula-plan returns artifact with url and sha256."
+    },
+    {
+      "code": "WV-PKG-003",
+      "description": "Snap project generation is available, but building .snap requires snapcraft on Linux.",
+      "developer_action": "Keep plan/project generation independent from snapcraft availability.",
+      "kb_slugs": [
+        "homebrew-snap-packaging"
+      ],
+      "kb_titles": [
+        "Homebrew or Snap packaging support failed"
+      ],
+      "kind": "error",
+      "operator_action": "Run package-snap-project for review or build .snap on a Linux host with snapcraft installed.",
+      "related_commands": "make package-snap-plan | make package-snap-project | make package-snap",
+      "retryable": true,
+      "severity": "warning",
+      "source_refs": "tools/packaging/build_snap_package.py",
+      "status": "active",
+      "subsystem": "packaging",
+      "tags": "packaging,snap,snapcraft",
+      "title": "Snapcraft unavailable for package build",
+      "verification": "package-snap-project writes snap/snapcraft.yaml and payload/bin/wv."
+    },
+    {
+      "code": "WV-RLY-001",
+      "description": "One side of a bidirectional relay exited before clean drain/close.",
+      "developer_action": "Capture close reason, bytes in/out, pump state, and cleanup path.",
+      "kb_slugs": [
+        "relay-and-loopback-policy"
+      ],
+      "kb_titles": [
+        "Relay, bridge, or socket policy rejected unsafe binding"
+      ],
+      "kind": "error",
+      "operator_action": "Check both endpoint logs, retry after confirming target service is healthy.",
+      "related_commands": "pytest -q tests -k relay",
+      "retryable": true,
+      "severity": "error",
+      "source_refs": "docs/specs/drain_reconnect.md; relay/",
+      "status": "active",
+      "subsystem": "relay",
+      "tags": "relay,concurrency,cleanup",
+      "title": "Relay pump terminated early",
+      "verification": "Both pumps exit, counters are final, no active relay is reaped by cleanup."
+    },
+    {
+      "code": "WV-RLY-002",
+      "description": "A relay, bridge, or adapter tried to bind a public/non-loopback address without explicit policy.",
+      "developer_action": "Keep bind policy centralized and audit all overrides.",
+      "kb_slugs": [
+        "relay-and-loopback-policy"
+      ],
+      "kb_titles": [
+        "Relay, bridge, or socket policy rejected unsafe binding"
+      ],
+      "kind": "error",
+      "operator_action": "Use 127.0.0.1/::1 or generate a dataplane policy with explicit non-loopback allowance.",
+      "related_commands": "tools/verification/sshx11_dataplane_iptables.py ...",
+      "retryable": false,
+      "severity": "error",
+      "source_refs": "docs/specs/dataplane_firewall_policy.md",
+      "status": "active",
+      "subsystem": "relay",
+      "tags": "relay,loopback,policy",
+      "title": "Unsafe non-loopback bind rejected",
+      "verification": "Plan shows loopback bind or explicit reviewed override."
+    },
+    {
+      "code": "WV-SOC-001",
+      "description": "A socket bridge such as socat/ncat was rejected by loopback, endpoint, or lifecycle policy.",
+      "developer_action": "Planner should emit exact command, PID/log paths, and policy decision before execution.",
+      "kb_slugs": [
+        "external-tool-adapters",
+        "relay-and-loopback-policy"
+      ],
+      "kb_titles": [
+        "External tool adapter attempted to replace weaverssh data plane",
+        "Relay, bridge, or socket policy rejected unsafe binding"
+      ],
+      "kind": "error",
+      "operator_action": "Use loopback bind and managed lifecycle; review dataplane policy for any exception.",
+      "related_commands": "socat ... | tools/verification/sshx11_dataplane_iptables.py ...",
+      "retryable": false,
+      "severity": "error",
+      "source_refs": "docs/specs/dataplane_firewall_policy.md",
+      "status": "active",
+      "subsystem": "adapter",
+      "tags": "adapter,socat,bridge,loopback",
+      "title": "Socket bridge command rejected",
+      "verification": "Bridge plan is loopback-only, audited, and terminates at approved endpoint."
+    },
+    {
+      "code": "WV-SSH-001",
+      "description": "SSH authentication or host connection failed for a profile or chain hop.",
+      "developer_action": "Surface failing hop and exact adapter/provider used with secrets redacted.",
+      "kb_slugs": [
+        "ssh-login-failure"
+      ],
+      "kb_titles": [
+        "SSH login or chain authentication failed"
+      ],
+      "kind": "error",
+      "operator_action": "Test raw ssh with the same user/host, load key, fix profile, then retry.",
+      "related_commands": "ssh -vvv <user@host> | ssh-add -l | wv connection current",
+      "retryable": true,
+      "severity": "error",
+      "source_refs": "docs/specs/multihop_forwarding_websocket.md",
+      "status": "active",
+      "subsystem": "ssh",
+      "tags": "ssh,login,chain",
+      "title": "SSH login failed",
+      "verification": "Raw ssh login succeeds and wv chain probe passes."
+    },
+    {
+      "code": "WV-SSH-002",
+      "description": "A workflow requested forwarded identity support but no usable agent/forwarding path was available.",
+      "developer_action": "Keep agent forwarding optional unless profile requires it and report provider detection details.",
+      "kb_slugs": [
+        "ssh-login-failure"
+      ],
+      "kb_titles": [
+        "SSH login or chain authentication failed"
+      ],
+      "kind": "error",
+      "operator_action": "Start/load identity provider or switch to explicit identity file/profile.",
+      "related_commands": "ssh-add -l | wv connections scan --json",
+      "retryable": true,
+      "severity": "warning",
+      "source_refs": "docs/specs/platform_adapter_compatibility.md",
+      "status": "active",
+      "subsystem": "ssh",
+      "tags": "ssh,agent,identity",
+      "title": "Agent forwarding unavailable",
+      "verification": "ssh-add -l works locally and requested chain reports agent availability."
+    },
+    {
+      "code": "WV-VAL-001",
+      "description": "A destructive validation workflow was requested without explicit approval.",
+      "developer_action": "Keep validation harnesses outside product trigger and require gate checks.",
+      "kb_slugs": [
+        "packaging-verification"
+      ],
+      "kb_titles": [
+        "Release artifact verification failed"
+      ],
+      "kind": "error",
+      "operator_action": "Rerun only after selecting disposable nodes and passing the destructive gate.",
+      "related_commands": "./weaverssh-validate run jepsen-system --allow-destructive ...",
+      "retryable": false,
+      "severity": "warning",
+      "source_refs": "tools/verification/weaverssh_trigger.py",
+      "status": "active",
+      "subsystem": "validation",
+      "tags": "validation,jepsen,destructive",
+      "title": "Destructive validation gate missing",
+      "verification": "Validation command includes --allow-destructive and target nodes are disposable."
+    },
+    {
+      "code": "WV-VFS-001",
+      "description": "The 9P/VFS service is not running or not reachable.",
+      "developer_action": "Keep 9P plugin discovery accurate and avoid reporting available when artifacts are missing.",
+      "kb_slugs": [
+        "vfs-fuse"
+      ],
+      "kb_titles": [
+        "9P/VFS or FUSE mount is unavailable"
+      ],
+      "kind": "error",
+      "operator_action": "Run plugin discovery/status, start 9P service, verify listener and root path.",
+      "related_commands": "tools/verification/sshx11_ops.sh plugins-discover --feature vfs.readonly.9p | wv status",
+      "retryable": true,
+      "severity": "error",
+      "source_refs": "docs/specs/feature_plugin_catalog.md",
+      "status": "active",
+      "subsystem": "vfs",
+      "tags": "vfs,9p,plugin",
+      "title": "9P VFS endpoint unavailable",
+      "verification": "vfs.9p plugin available and status reports listener/root."
+    },
+    {
+      "code": "WV-WSS-001",
+      "description": "The connection passed X11 setup but failed the required WebSocket upgrade/framing phase.",
+      "developer_action": "Keep downgrade attempts rejected and add frame parser test for the observed case.",
+      "kb_slugs": [
+        "websocket-second-phase"
+      ],
+      "kb_titles": [
+        "WebSocket second phase failed or downgraded"
+      ],
+      "kind": "error",
+      "operator_action": "Inspect upgrade/frame logs and retry with correct wv endpoints.",
+      "related_commands": "pytest -q tests -k websocket",
+      "retryable": false,
+      "severity": "error",
+      "source_refs": "docs/specs/x11_forward_websocket_protocol.md",
+      "status": "active",
+      "subsystem": "websocket",
+      "tags": "websocket,upgrade,framing",
+      "title": "WebSocket second phase rejected",
+      "verification": "Trace shows X11 setup success followed by valid WebSocket phase."
+    },
+    {
+      "code": "WV-X11-001",
+      "description": "The X11 DISPLAY value could not be mapped to a supported Unix or TCP endpoint.",
+      "developer_action": "Parser should report display family, display number, screen, and candidate sockets.",
+      "kb_slugs": [
+        "x11-display-authority"
+      ],
+      "kb_titles": [
+        "DISPLAY/XAUTHORITY resolution failed"
+      ],
+      "kind": "error",
+      "operator_action": "Start X server, export DISPLAY, verify endpoint, then retry.",
+      "related_commands": "env | grep DISPLAY | ls -l /tmp/.X11-unix | lsof -nP -iTCP:6000",
+      "retryable": true,
+      "severity": "error",
+      "source_refs": "docs/specs/display_authority_resolution.md; display/",
+      "status": "active",
+      "subsystem": "x11",
+      "tags": "x11,display,socket",
+      "title": "DISPLAY could not be resolved",
+      "verification": "DISPLAY maps to existing /tmp/.X11-unix/XN or localhost:6000+N listener."
+    },
+    {
+      "code": "WV-X11-002",
+      "description": "The selected X11 endpoint has no matching MIT-MAGIC-COOKIE-1 authority row.",
+      "developer_action": "Do not relay until cookie lookup and setup authorization succeed.",
+      "kb_slugs": [
+        "x11-display-authority"
+      ],
+      "kb_titles": [
+        "DISPLAY/XAUTHORITY resolution failed"
+      ],
+      "kind": "error",
+      "operator_action": "Fix XAUTHORITY, regenerate xauth, or choose the endpoint matching the authority key.",
+      "related_commands": "xauth list | env | grep XAUTHORITY",
+      "retryable": false,
+      "severity": "error",
+      "source_refs": "docs/specs/x11_authorization_cookie.md",
+      "status": "active",
+      "subsystem": "x11",
+      "tags": "x11,xauthority,cookie",
+      "title": "XAUTHORITY cookie missing or mismatched",
+      "verification": "xauth list includes display-keyed cookie matching selected socket."
+    },
+    {
+      "code": "WV-X11-003",
+      "description": "X11 setup validation failed and the connection correctly did not enter relay mode.",
+      "developer_action": "Keep tests proving failed setup never tunnels.",
+      "kb_slugs": [
+        "x11-setup-fails-closed"
+      ],
+      "kb_titles": [
+        "X11 setup was rejected before relay"
+      ],
+      "kind": "fault",
+      "operator_action": "Correct X11 setup/auth inputs; do not override fail-closed behavior.",
+      "related_commands": "pytest -q tests -k x11_setup",
+      "retryable": false,
+      "severity": "fatal",
+      "source_refs": "docs/specs/x11_setup_packets.md",
+      "status": "active",
+      "subsystem": "x11",
+      "tags": "x11,setup,fail-closed",
+      "title": "X11 setup failed closed",
+      "verification": "Trace shows setup rejected and relay inactive."
+    }
+  ],
+  "components": {
+    "adapter": [
+      "WV-ADP-001",
+      "WV-SOC-001"
+    ],
+    "authproof": [
+      "WV-AUT-001",
+      "WV-AUT-002"
+    ],
+    "configuration": [
+      "WV-CFG-001",
+      "WV-CFG-002"
+    ],
+    "dependencies": [
+      "WV-DEP-001",
+      "WV-DEP-002"
+    ],
+    "mcp": [
+      "WV-MCP-001"
+    ],
+    "packaging": [
+      "WV-PKG-001",
+      "WV-PKG-002",
+      "WV-PKG-003"
+    ],
+    "relay": [
+      "WV-RLY-001",
+      "WV-RLY-002"
+    ],
+    "ssh": [
+      "WV-SSH-001",
+      "WV-SSH-002"
+    ],
+    "validation": [
+      "WV-VAL-001"
+    ],
+    "vfs": [
+      "WV-FUS-001",
+      "WV-VFS-001"
+    ],
+    "websocket": [
+      "WV-WSS-001"
+    ],
+    "x11": [
+      "WV-X11-001",
+      "WV-X11-002",
+      "WV-X11-003"
+    ]
+  },
+  "source": "docs/debug/weaverssh_debug_kb.sqlite3",
+  "source_schema_version": "weaverssh.debug_kb.v1",
+  "version": "weaverssh.error_registry.v1"
+}

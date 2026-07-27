@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/session-api-envelope.v1.schema.json",
+  "title": "WeaverSSH Native Session API Envelope",
+  "oneOf": [
+    {"$ref": "#/$defs/request"},
+    {"$ref": "#/$defs/response"}
+  ],
+  "$defs": {
+    "request": {
+      "type": "object",
+      "required": ["protocol", "id", "method"],
+      "properties": {
+        "protocol": {"const": "weaverssh.session-api.v1"},
+        "id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "method": {"type": "string", "minLength": 1, "maxLength": 128},
+        "params": true
+      },
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "required": ["protocol", "id"],
+      "properties": {
+        "protocol": {"const": "weaverssh.session-api.v1"},
+        "id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "result": true,
+        "error": {
+          "type": "object",
+          "required": ["code", "message"],
+          "properties": {
+            "code": {"type": "string", "minLength": 1, "maxLength": 128},
+            "message": {"type": "string", "maxLength": 4096}
+          },
+          "additionalProperties": false
+        }
+      },
+      "oneOf": [
+        {"required": ["result"], "not": {"required": ["error"]}},
+        {"required": ["error"], "not": {"required": ["result"]}}
+      ],
+      "additionalProperties": false
+    }
+  }
+}

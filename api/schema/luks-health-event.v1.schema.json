@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/luks-health-event.v1.schema.json",
+  "title": "WeaverSSH LUKS Live Guard Health Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "volume", "state", "forced", "baseline_sha256", "generation", "checked_at_unix_nano"],
+  "properties": {
+    "version": {"const": "weaverssh.luks-health-event.v1"},
+    "volume": {"type": "string", "pattern": "^[a-z0-9._-]{1,128}$"},
+    "state": {"enum": ["healthy", "failed"]},
+    "forced": {"type": "boolean"},
+    "baseline_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "current_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "generation": {"type": "integer", "minimum": 1},
+    "checked_at_unix_nano": {"type": "integer", "minimum": 1},
+    "next_check_at_unix_nano": {"type": "integer", "minimum": 1},
+    "error": {"type": "string", "maxLength": 1048576}
+  }
+}

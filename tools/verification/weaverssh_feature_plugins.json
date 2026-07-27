@@ -1,0 +1,72 @@
+{
+  "version": "weaverssh.feature_plugins.v1",
+  "plugins": [
+    {
+      "id": "vfs.9p",
+      "name": "9P VFS Service",
+      "kind": "service",
+      "enabled_by_default": true,
+      "description": "Repo-native read-only 9P endpoint for VFS mesh and SOCKS data-path workflows.",
+      "provides": [
+        "vfs.readonly.9p",
+        "vfs.mesh.endpoint",
+        "socks.data_path.validation",
+        "containerized.service"
+      ],
+      "services": [
+        {
+          "id": "wv-9p",
+          "binary": "build/bin/wv-9p",
+          "protocols": ["9P2000.L", "9P2000.u", "9P2000"],
+          "default_listen": "127.0.0.1:5640",
+          "runtimes": ["host", "docker", "podman", "nerdctl"],
+          "read_only": true
+        }
+      ],
+      "commands": [
+        {
+          "id": "plan",
+          "ops_subcommand": "9p-plan",
+          "description": "Show host/container launch plan without starting the service."
+        },
+        {
+          "id": "start",
+          "ops_subcommand": "9p-start",
+          "description": "Start the read-only 9P service on the host or selected container runtime."
+        },
+        {
+          "id": "status",
+          "ops_subcommand": "9p-status",
+          "description": "Report service state, listener, runtime, and root availability."
+        },
+        {
+          "id": "logs",
+          "ops_subcommand": "9p-logs",
+          "description": "Read host or container runtime logs for the 9P service."
+        },
+        {
+          "id": "stop",
+          "ops_subcommand": "9p-stop",
+          "description": "Stop the service or remove the managed container."
+        },
+        {
+          "id": "image_build",
+          "ops_subcommand": "9p-image-build",
+          "description": "Build the repo-native wv-9p container image."
+        }
+      ],
+      "required_artifacts": [
+        "cmd/wv-9p/main.go",
+        "internal/p9svc/server.go",
+        "tools/verification/sshx11_9p_service.py",
+        "tools/containers/wv-9p.Containerfile"
+      ],
+      "docs": [
+        "README.md",
+        "docs/workstation/SSHX11_9P_INTEROP_IMPLEMENTATIONS.md",
+        "docs/workstation/SSHX11_VFS_MESH_PHASE1.md"
+      ],
+      "tags": ["vfs", "9p", "service", "container", "socks"]
+    }
+  ]
+}

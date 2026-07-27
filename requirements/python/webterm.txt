@@ -1,0 +1,7 @@
+# Optional web terminal and browser-control support profile.
+# Pin or constrain these with tools/packaging/lock_python_requirements.sh before release.
+starlette>=0.37
+uvicorn>=0.30
+pillow>=10.0
+websocket-client>=1.8
+paho-mqtt>=2.1

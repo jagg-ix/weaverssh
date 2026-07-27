@@ -1,0 +1,7 @@
+---
+- name: Install weaverssh wv binary
+  hosts: weaverssh_targets
+  gather_facts: true
+  become: false
+  roles:
+    - role: weaverssh_wv

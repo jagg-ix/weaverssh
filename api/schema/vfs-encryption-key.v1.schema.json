@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/vfs-encryption-key.v1.schema.json",
+  "title": "WeaverSSH VFS X25519 Key File",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "key_id", "node_id", "algorithm", "public_key"],
+  "properties": {
+    "version": {"const": "weaverssh.vfs-encryption-key.v1"},
+    "key_id": {"type": "string", "pattern": "^x25519-[0-9a-f]{32}$"},
+    "node_id": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000\\r\\n]+$"},
+    "algorithm": {"const": "x25519"},
+    "public_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"},
+    "private_key": {"type": "string", "pattern": "^[A-Za-z0-9+/]{43}=$"}
+  }
+}

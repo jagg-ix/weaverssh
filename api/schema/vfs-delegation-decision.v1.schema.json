@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/vfs-delegation-decision.v1.schema.json",
+  "title": "WeaverSSH VFS Delegation Engine Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["disposition"],
+  "properties": {
+    "disposition": {"enum": ["decline", "contribute", "handle", "reject"]},
+    "coverage": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^(?:\\*|[A-Za-z0-9._/-]{1,256})$"}
+    },
+    "map": {
+      "type": "array",
+      "maxItems": 65536,
+      "items": {"$ref": "#/$defs/mapEntry"}
+    },
+    "reason": {"type": "string", "maxLength": 4096, "pattern": "^[^\\u0000\\r\\n]*$"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"disposition": {"const": "handle"}}},
+      "then": {"required": ["coverage"], "properties": {"coverage": {"const": ["*"]}}}
+    },
+    {
+      "if": {"properties": {"disposition": {"const": "contribute"}}},
+      "then": {"required": ["map"], "properties": {"map": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "mapEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "strategy", "value"],
+      "properties": {
+        "key": {"type": "string", "pattern": "^[A-Za-z0-9._/-]{1,256}$"},
+        "strategy": {"enum": ["first", "last", "append", "sum", "min", "max", "bool-or", "bool-and", "set-union", "reject-conflict"]},
+        "value": {}
+      }
+    }
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/vfs-delegation-request.v1.schema.json",
+  "title": "WeaverSSH VFS Delegation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "id", "operation"],
+  "properties": {
+    "version": {"const": "weaverssh.vfs-delegation-request.v1"},
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[^\\s=]+$"},
+    "operation": {"enum": ["stat", "lstat", "readdir", "open", "openfile", "truncate", "mkdir", "remove", "rename", "readat", "writeat", "chmod", "close"]},
+    "path": {"$ref": "#/$defs/relativePath"},
+    "secondary_path": {"$ref": "#/$defs/relativePath"},
+    "offset": {"type": "integer", "minimum": 0},
+    "size": {"type": "integer", "minimum": 0},
+    "flags": {"type": "integer"},
+    "perm": {"type": "integer", "minimum": 0, "maximum": 4294967295},
+    "data_size": {"type": "integer", "minimum": 0},
+    "data_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "depth": {"type": "integer", "minimum": 0, "maximum": 64},
+    "attributes": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {"pattern": "^[A-Za-z0-9._/-]{1,256}$"},
+      "additionalProperties": {"type": "string", "maxLength": 4096, "pattern": "^[^\\u0000\\r\\n]*$"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"operation": {"const": "rename"}}},
+      "then": {"required": ["path", "secondary_path"]}
+    },
+    {
+      "if": {"properties": {"operation": {"enum": ["readat", "writeat"]}}},
+      "then": {"required": ["path", "offset", "size"]}
+    },
+    {
+      "if": {"properties": {"operation": {"const": "writeat"}}},
+      "then": {"required": ["data_size", "data_sha256"]}
+    },
+    {
+      "if": {"properties": {"operation": {"enum": ["openfile", "mkdir", "chmod"]}}},
+      "then": {"required": ["path", "perm"]}
+    }
+  ],
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "maxLength": 4096,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\u0000\\r\\n]*$"
+    }
+  }
+}

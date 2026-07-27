@@ -1,0 +1,63 @@
+{
+  "ok": true,
+  "status": "pass",
+  "mode": "mock",
+  "battery_config": {
+    "scenario": "smoke",
+    "latency_connect_count": 12,
+    "latency_rtt_count": 24,
+    "latency_sizes": [
+      64,
+      256
+    ],
+    "bandwidth_cases": [
+      {
+        "chunk_size": 16384,
+        "chunk_count": 32
+      }
+    ],
+    "concurrency_levels": [
+      2
+    ]
+  },
+  "connection_accounting": {
+    "connection_min_per_path": 17,
+    "connection_min_both_paths_direct_plus_socks": 34
+  },
+  "latency": {
+    "connect_socks": {
+      "p95_us": 1200
+    },
+    "rtt_cases": [
+      {
+        "payload_bytes": 64,
+        "socks": {
+          "p95_us": 1500
+        }
+      },
+      {
+        "payload_bytes": 256,
+        "socks": {
+          "p95_us": 1800
+        }
+      }
+    ]
+  },
+  "bandwidth": {
+    "stream_cases": [
+      {
+        "chunk_size": 16384,
+        "chunk_count": 32,
+        "socks": {
+          "mbps": 90.0
+        }
+      }
+    ]
+  },
+  "regression_thresholds": {
+    "max_connect_p95_regression_pct": 15.0,
+    "max_rtt_p95_regression_pct": 15.0,
+    "max_throughput_drop_pct": 10.0
+  }
+}
+

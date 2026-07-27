@@ -1,0 +1,6 @@
+# Include is resolved only by default discovery (WEAVERSSH_SSH_CONFIG), not by a
+# single --ssh-config blob; kept here to exercise that path too.
+Host frontdoor
+    HostName edge.example.com
+    User ops
+Include include.d/*.sshconf

@@ -1,0 +1,145 @@
+{
+  "openrpc": "1.4.0",
+  "info": {
+    "title": "WeaverSSH In-Band Session API",
+    "version": "1.1.0",
+    "description": "Bounded request/response methods carried by the authenticated sessionmux control service. Contract discovery is optional and appears only when a provider is configured."
+  },
+  "methods": [
+    {
+      "name": "api.capabilities",
+      "summary": "List supported methods",
+      "params": [],
+      "result": {"name": "capabilities", "schema": {"$ref": "#/components/schemas/Capabilities"}}
+    },
+    {
+      "name": "api.contracts",
+      "summary": "List a bounded page of published API contract descriptors",
+      "params": [
+        {"name": "offset", "required": false, "schema": {"type": "integer", "minimum": 0}},
+        {"name": "limit", "required": false, "schema": {"type": "integer", "minimum": 1, "maximum": 128}}
+      ],
+      "result": {"name": "contracts", "schema": {"$ref": "#/components/schemas/ContractList"}}
+    },
+    {
+      "name": "api.contract.get",
+      "summary": "Retrieve one bounded API description document",
+      "params": [
+        {"name": "id", "required": true, "schema": {"type": "string", "maxLength": 128}},
+        {"name": "version", "required": false, "schema": {"type": "string", "maxLength": 128}}
+      ],
+      "result": {"name": "document", "schema": {"$ref": "#/components/schemas/ContractDocument"}}
+    },
+    {
+      "name": "session.describe",
+      "summary": "Describe the current authenticated session",
+      "params": [],
+      "result": {"name": "snapshot", "schema": {"$ref": "#/components/schemas/Snapshot"}}
+    },
+    {
+      "name": "topology.list",
+      "summary": "Return the current session topology",
+      "params": [],
+      "result": {"name": "nodes", "schema": {"type": "array", "items": {"$ref": "#/components/schemas/Node"}}}
+    },
+    {
+      "name": "node.resolve",
+      "summary": "Resolve a node identifier to its topology index",
+      "params": [{"name": "node", "required": true, "schema": {"type": "string", "maxLength": 128}}],
+      "result": {"name": "resolution", "schema": {"$ref": "#/components/schemas/ResolveResult"}}
+    },
+    {
+      "name": "route.prepare",
+      "summary": "Prepare the first hop for a routed service",
+      "params": [
+        {"name": "node", "required": true, "schema": {"type": "string", "maxLength": 128}},
+        {"name": "service", "required": false, "schema": {"type": "string", "maxLength": 128}}
+      ],
+      "result": {"name": "route", "schema": {"$ref": "#/components/schemas/RoutePlan"}}
+    }
+  ],
+  "components": {
+    "schemas": {
+      "Node": {
+        "type": "object",
+        "required": ["id", "index", "registered"],
+        "properties": {
+          "id": {"type": "string"},
+          "index": {"type": "integer"},
+          "registered": {"type": "boolean"},
+          "services": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "Capabilities": {
+        "type": "object",
+        "required": ["protocol", "methods"],
+        "properties": {
+          "protocol": {"const": "weaverssh.session-api.v1"},
+          "methods": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "ContractDescriptor": {
+        "type": "object",
+        "required": ["id", "contract_version", "kind", "stability", "compatibility", "sha256"],
+        "properties": {
+          "id": {"type": "string"},
+          "contract_version": {"type": "string"},
+          "kind": {"type": "string"},
+          "stability": {"type": "string"},
+          "compatibility": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      },
+      "ContractList": {
+        "type": "object",
+        "required": ["catalog", "revision", "total", "offset", "contracts"],
+        "properties": {
+          "catalog": {"type": "string"},
+          "revision": {"type": "string"},
+          "total": {"type": "integer"},
+          "offset": {"type": "integer"},
+          "contracts": {"type": "array", "items": {"$ref": "#/components/schemas/ContractDescriptor"}}
+        }
+      },
+      "ContractDocument": {
+        "type": "object",
+        "required": ["contract", "encoding", "data"],
+        "properties": {
+          "contract": {"$ref": "#/components/schemas/ContractDescriptor"},
+          "encoding": {"enum": ["utf-8", "base64"]},
+          "data": {"type": "string"}
+        }
+      },
+      "Snapshot": {
+        "type": "object",
+        "required": ["protocol", "binding", "current_node", "current_index", "topology", "nodes", "features"],
+        "properties": {
+          "protocol": {"const": "weaverssh.session-api.v1"},
+          "binding": {"type": "string"},
+          "current_node": {"type": "string"},
+          "current_index": {"type": "integer"},
+          "topology": {"type": "array", "items": {"type": "string"}},
+          "nodes": {"type": "array", "items": {"$ref": "#/components/schemas/Node"}},
+          "features": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "ResolveResult": {
+        "type": "object",
+        "required": ["node", "index"],
+        "properties": {"node": {"type": "string"}, "index": {"type": "integer"}}
+      },
+      "RoutePlan": {
+        "type": "object",
+        "required": ["target_node", "target_index", "direction", "available"],
+        "properties": {
+          "target_node": {"type": "string"},
+          "target_index": {"type": "integer"},
+          "direction": {"type": "string"},
+          "next_hop": {"type": "string"},
+          "service": {"type": "string"},
+          "available": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

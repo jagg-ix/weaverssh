@@ -1,0 +1,9 @@
+---
+- name: Install weaverssh wv binary into a Kubernetes pod
+  hosts: localhost
+  gather_facts: true
+  become: false
+  vars:
+    weaverssh_target_type: kubernetes
+  roles:
+    - role: weaverssh_wv

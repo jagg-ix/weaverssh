@@ -1,0 +1,112 @@
+{
+  "openapi": "3.1.2",
+  "info": {
+    "title": "WeaverSSH Control Gateway",
+    "version": "1.0.0",
+    "description": "Experimental HTTP adapter over authenticated WeaverSSH control services. The contract does not require a public listener."
+  },
+  "paths": {
+    "/v1/session": {
+      "get": {
+        "operationId": "describeSession",
+        "responses": {
+          "200": {
+            "description": "Current session description",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SessionSnapshot"}}}
+          }
+        }
+      }
+    },
+    "/v1/topology": {
+      "get": {
+        "operationId": "listTopology",
+        "responses": {
+          "200": {
+            "description": "Current topology",
+            "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/Node"}}}}
+          }
+        }
+      }
+    },
+    "/v1/routes/prepare": {
+      "post": {
+        "operationId": "prepareRoute",
+        "requestBody": {
+          "required": true,
+          "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RoutePrepareRequest"}}}
+        },
+        "responses": {
+          "200": {
+            "description": "Prepared route",
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RoutePlan"}}}
+          }
+        }
+      }
+    },
+    "/v1/contracts": {
+      "get": {
+        "operationId": "listAPIContracts",
+        "responses": {
+          "200": {
+            "description": "Published API contracts",
+            "content": {"application/json": {"schema": {"type": "array", "items": {"$ref": "#/components/schemas/Contract"}}}}
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Node": {
+        "type": "object",
+        "required": ["id", "index", "registered"],
+        "properties": {
+          "id": {"type": "string"},
+          "index": {"type": "integer"},
+          "registered": {"type": "boolean"},
+          "services": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "SessionSnapshot": {
+        "type": "object",
+        "required": ["protocol", "binding", "current_node", "current_index", "topology", "nodes", "features"],
+        "properties": {
+          "protocol": {"type": "string"},
+          "binding": {"type": "string"},
+          "current_node": {"type": "string"},
+          "current_index": {"type": "integer"},
+          "topology": {"type": "array", "items": {"type": "string"}},
+          "nodes": {"type": "array", "items": {"$ref": "#/components/schemas/Node"}},
+          "features": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "RoutePrepareRequest": {
+        "type": "object",
+        "required": ["node"],
+        "properties": {"node": {"type": "string"}, "service": {"type": "string"}}
+      },
+      "RoutePlan": {
+        "type": "object",
+        "required": ["target_node", "target_index", "direction", "available"],
+        "properties": {
+          "target_node": {"type": "string"},
+          "target_index": {"type": "integer"},
+          "direction": {"type": "string"},
+          "next_hop": {"type": "string"},
+          "available": {"type": "boolean"}
+        }
+      },
+      "Contract": {
+        "type": "object",
+        "required": ["id", "contract_version", "kind", "stability", "sha256"],
+        "properties": {
+          "id": {"type": "string"},
+          "contract_version": {"type": "string"},
+          "kind": {"type": "string"},
+          "stability": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "name": "vscode-weaverssh-nebula-underlay",
+  "displayName": "WeaverSSH Nebula Underlay",
+  "description": "Optional SSH-over-Nebula connection profiles, authenticated session readiness, and diagnostics for WeaverSSH.",
+  "version": "0.2.0",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:weaversshNebula.diagnose",
+    "onCommand:weaversshNebula.connect",
+    "onCommand:weaversshNebula.refreshSessionStatus"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "weaversshNebula.diagnose",
+        "title": "WeaverSSH: Diagnose Nebula Node",
+        "category": "WeaverSSH"
+      },
+      {
+        "command": "weaversshNebula.connect",
+        "title": "WeaverSSH: Connect Nebula Node",
+        "category": "WeaverSSH"
+      },
+      {
+        "command": "weaversshNebula.refreshSessionStatus",
+        "title": "WeaverSSH: Refresh Nebula Session Status",
+        "category": "WeaverSSH"
+      }
+    ],
+    "configuration": {
+      "title": "WeaverSSH Nebula",
+      "properties": {
+        "weaversshNebula.profilePath": {
+          "type": "string",
+          "default": ".weaverssh/workspace.json",
+          "description": "Workspace-relative or absolute WeaverSSH connection profile path."
+        },
+        "weaversshNebula.wvBinary": {
+          "type": "string",
+          "default": "wv",
+          "description": "WeaverSSH CLI executable used for diagnostics, session launch, and authenticated API checks."
+        },
+        "weaversshNebula.timeoutMs": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 500,
+          "description": "Timeout used for one SSH-over-Nebula or WeaverSSH API diagnostic."
+        },
+        "weaversshNebula.sessionWaitTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 1000,
+          "description": "Maximum time to wait after launch for the signed target node to register through the local WeaverSSH broker."
+        },
+        "weaversshNebula.pollIntervalMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 100,
+          "description": "Polling interval while waiting for the authenticated WeaverSSH session."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package",
+    "test": "npm run build && tsc -p tsconfig.test.json && node dist-test/test/sessionStatus.test.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^2.26.1",
+    "typescript": "^5.6.3"
+  }
+}

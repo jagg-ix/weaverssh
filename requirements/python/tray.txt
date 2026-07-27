@@ -1,0 +1,4 @@
+# Optional legacy Python tray/widget profile.
+# The production dock is native, but these deps support older Python tray flows.
+pillow>=10.0
+pystray>=0.19

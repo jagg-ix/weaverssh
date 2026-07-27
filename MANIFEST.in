@@ -1,0 +1,13 @@
+include README.md
+include pyproject.toml
+include tools/packaging/python_distribution_manifest.json
+recursive-include python/weaverssh_support/resources *.json
+recursive-include requirements/python *.txt
+recursive-include tools/packaging *.py *.json
+recursive-include tools/verification *.py *.json
+prune build
+prune dist
+prune tests
+prune .git
+prune **/__pycache__
+global-exclude *.py[cod]

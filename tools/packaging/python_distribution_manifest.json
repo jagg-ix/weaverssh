@@ -1,0 +1,47 @@
+{
+  "schema": "weaverssh.python_distribution_manifest.v1",
+  "python_requires": ">=3.10",
+  "default_profile": "core",
+  "profiles": {
+    "core": {
+      "description": "Production setup, dependency, packaging, and connection-profile tooling that uses only the Python standard library.",
+      "requirements": ["requirements/python/core.txt"]
+    },
+    "mcp": {
+      "description": "MCP/control-plane helpers used for local context and multi-helper coordination.",
+      "requirements": ["requirements/python/core.txt", "requirements/python/mcp.txt"]
+    },
+    "webterm": {
+      "description": "Web terminal and MQTT/browser-adjacent support services.",
+      "requirements": ["requirements/python/core.txt", "requirements/python/webterm.txt"]
+    },
+    "tray": {
+      "description": "Legacy Python tray/widget helpers. Native service dock remains the preferred production UI.",
+      "requirements": ["requirements/python/core.txt", "requirements/python/tray.txt"]
+    },
+    "vision": {
+      "description": "Optional workstation vision/automation bridge with heavy platform-specific dependencies.",
+      "requirements": ["requirements/python/core.txt", "requirements/python/vision.txt"]
+    },
+    "all": {
+      "description": "All non-vision production profiles.",
+      "requirements": ["requirements/python/production.txt"]
+    }
+  },
+  "tools": [
+    {"name": "deps", "path": "tools/packaging/install_runtime_dependencies.py", "profile": "core", "description": "Plan, inspect, and install OS/runtime dependencies."},
+    {"name": "setup", "path": "tools/packaging/linux_setup.py", "profile": "core", "description": "Detect SSH identities/configuration and emit setup commands."},
+    {"name": "package", "path": "tools/packaging/weaverssh_packager.py", "profile": "core", "description": "Build OS package artifacts from prepared binaries."},
+    {"name": "package-install", "path": "tools/packaging/install_weaverssh_package.py", "profile": "core", "description": "Plan or execute install for generated OS package artifacts."},
+    {"name": "matrix", "path": "tools/packaging/build_weaverssh_matrix.py", "profile": "core", "description": "Plan and build maintained Go target matrices."},
+    {"name": "plane-ctl", "path": "tools/verification/sshx11_plane_ctl.py", "profile": "core", "description": "Control the local weaverssh control/data plane services."},
+    {"name": "plane-log-summary", "path": "tools/verification/sshx11_plane_log_summary.py", "profile": "core", "description": "Summarize local control/data plane logs."},
+    {"name": "adapter-discovery", "path": "tools/verification/sshx11_adapter_discovery.py", "profile": "core", "description": "Detect local SSH adapter and identity providers."},
+    {"name": "mcp-context", "path": "tools/verification/local_context_mcp_service.py", "profile": "mcp", "description": "Run the local context MCP service."},
+    {"name": "mcp-idea", "path": "tools/verification/idea_lambda_mcp_service.py", "profile": "mcp", "description": "Run the idea collaboration MCP service."},
+    {"name": "webterm-asgi", "path": "tools/verification/webterm_asgi.py", "profile": "webterm", "description": "Run the web terminal ASGI app."},
+    {"name": "mqtt-bus", "path": "tools/verification/webterm_mqtt_bus.py", "profile": "webterm", "description": "Run the web terminal MQTT bus helper."},
+    {"name": "tray", "path": "tools/verification/sshx11_tray.py", "profile": "tray", "description": "Run the legacy Python tray helper."},
+    {"name": "opencv-whisper-bridge", "path": "tools/verification/opencv_whisper_bridge.py", "profile": "vision", "description": "Run the optional workstation vision/audio bridge."}
+  ]
+}

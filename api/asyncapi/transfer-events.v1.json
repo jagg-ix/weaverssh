@@ -1,0 +1,73 @@
+{
+  "asyncapi": "3.1.0",
+  "info": {
+    "title": "WeaverSSH Transfer Events",
+    "version": "1.0.0",
+    "description": "Transfer, replay, and managed lifecycle events published over authenticated event transports."
+  },
+  "defaultContentType": "application/json",
+  "channels": {
+    "transferStatus": {
+      "address": "{prefix}/{state}",
+      "parameters": {
+        "prefix": {"description": "Configured event topic prefix"},
+        "state": {"description": "Transfer lifecycle state"}
+      },
+      "messages": {"transferEvent": {"$ref": "#/components/messages/TransferEvent"}}
+    },
+    "managedTransferStatus": {
+      "address": "{prefix}/managed/{state}",
+      "parameters": {
+        "prefix": {"description": "Configured event topic prefix"},
+        "state": {"description": "Managed transfer FSM state"}
+      },
+      "messages": {"managedEvent": {"$ref": "#/components/messages/ManagedTransferEvent"}}
+    },
+    "replayStatus": {
+      "address": "{prefix}/replay/{state}",
+      "parameters": {
+        "prefix": {"description": "Configured event topic prefix"},
+        "state": {"description": "Replay state or cloned source state"}
+      },
+      "messages": {"replayEvent": {"$ref": "#/components/messages/TransferEvent"}}
+    }
+  },
+  "operations": {
+    "publishTransferStatus": {"action": "send", "channel": {"$ref": "#/channels/transferStatus"}},
+    "publishManagedTransferStatus": {"action": "send", "channel": {"$ref": "#/channels/managedTransferStatus"}},
+    "publishReplayStatus": {"action": "send", "channel": {"$ref": "#/channels/replayStatus"}}
+  },
+  "components": {
+    "messages": {
+      "TransferEvent": {
+        "name": "TransferEvent",
+        "payload": {"$ref": "../schema/transfer-event.v1.schema.json"}
+      },
+      "ManagedTransferEvent": {
+        "name": "ManagedTransferEvent",
+        "payload": {
+          "type": "object",
+          "required": ["version", "transfer_id", "stream_id", "state", "occurred_at_unix_nano"],
+          "properties": {
+            "version": {"const": "weaverssh.managed-transfer-event.v1"},
+            "transfer_id": {"type": "string"},
+            "stream_id": {"type": "string"},
+            "state": {"enum": ["received", "wrote", "completed", "failed", "closed"]},
+            "occurred_at_unix_nano": {"type": "integer"}
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ReplayLineage": {
+        "type": "object",
+        "properties": {
+          "replay_id": {"type": "string"},
+          "replayed_from_plan_id": {"type": "string"},
+          "replayed_from_record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "replay_generation": {"type": "integer", "minimum": 1}
+        }
+      }
+    }
+  }
+}

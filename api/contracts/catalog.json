@@ -1,0 +1,231 @@
+{
+  "version": "weaverssh.api-contract-catalog.v1",
+  "name": "weaverssh-api",
+  "revision": "1.6.0",
+  "contracts": [
+    {
+      "id": "session-api-envelope",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/session-api-envelope.v1.schema.json",
+      "stability": "stable",
+      "compatibility": "backward",
+      "owner": "sessionapi",
+      "transports": ["sessionmux-control", "websocket"],
+      "media_types": ["application/json"]
+    },
+    {
+      "id": "session-api-openrpc",
+      "contract_version": "1.1.0",
+      "kind": "openrpc",
+      "path": "../openrpc/session-api.v1.json",
+      "stability": "experimental",
+      "compatibility": "backward",
+      "owner": "sessionapi",
+      "transports": ["json-rpc-adapter"],
+      "media_types": ["application/json"]
+    },
+    {
+      "id": "control-gateway",
+      "contract_version": "1.0.0",
+      "kind": "openapi",
+      "path": "../openapi/control-gateway.v1.json",
+      "stability": "experimental",
+      "compatibility": "backward",
+      "owner": "control-plane",
+      "transports": ["https", "session-adapter"],
+      "media_types": ["application/json"]
+    },
+    {
+      "id": "transfer-events",
+      "contract_version": "1.0.0",
+      "kind": "asyncapi",
+      "path": "../asyncapi/transfer-events.v1.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "transferflow",
+      "transports": ["sessionevents", "mqtt", "websocket"],
+      "media_types": ["application/json"]
+    },
+    {
+      "id": "transfer-event-envelope",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/transfer-event.v1.schema.json",
+      "stability": "stable",
+      "compatibility": "backward",
+      "owner": "transferflow",
+      "media_types": ["application/json"]
+    },
+    {
+      "id": "origin-runtime-config",
+      "contract_version": "1.1.0",
+      "kind": "json-schema",
+      "path": "../schema/origin-runtime-config.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "originruntime",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "origin-runtime-descriptor",
+      "contract_version": "1.1.0",
+      "kind": "json-schema",
+      "path": "../schema/origin-runtime-descriptor.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "originruntime",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "vfs-delegation-request",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/vfs-delegation-request.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "vfscompose",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "vfs-delegation-decision",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/vfs-delegation-decision.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "vfscompose",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "vfs-delegation-observation",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/vfs-delegation-observation.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "vfscompose",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "vfs-delegation-report",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/vfs-delegation-report.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "vfscompose",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "vfs-encryption-policy",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/vfs-encryption-policy.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "vfscrypt",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "vfs-encryption-key",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/vfs-encryption-key.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "vfscrypt",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "vfs-encrypted-file-header",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/vfs-encrypted-file-header.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "vfscrypt",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "vfs-encryption-event",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/vfs-encryption-event.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "vfscrypt",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "luks-volume-config",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/luks-volume.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "luksruntime",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "luks-volume-descriptor",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/luks-volume-descriptor.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "luksruntime",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "luks-guard-set",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/luks-guard-set.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "luksruntime",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "luks-health-event",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/luks-health-event.v1.schema.json",
+      "stability": "beta",
+      "compatibility": "backward",
+      "owner": "luksruntime",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "api-contract-catalog-schema",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/api-contract-catalog.v1.schema.json",
+      "stability": "stable",
+      "compatibility": "backward",
+      "owner": "apicontract",
+      "media_types": ["application/schema+json"]
+    },
+    {
+      "id": "api-contract-lock-schema",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/api-contract-lock.v1.schema.json",
+      "stability": "stable",
+      "compatibility": "backward",
+      "owner": "apicontract",
+      "media_types": ["application/schema+json"]
+    },
+    {
+      "id": "control-protobuf",
+      "contract_version": "1.0.0",
+      "kind": "protobuf",
+      "path": "../proto/control/v1/control.proto",
+      "stability": "experimental",
+      "compatibility": "backward",
+      "owner": "control-plane",
+      "transports": ["grpc", "mqtt-grpc", "sessionmux"]
+    }
+  ]
+}

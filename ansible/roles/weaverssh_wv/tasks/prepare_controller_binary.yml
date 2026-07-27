@@ -1,0 +1,51 @@
+---
+- name: Create controller cache directory for container/pod install
+  ansible.builtin.file:
+    path: "{{ weaverssh_controller_cache_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+
+- name: Copy controller-local archive into controller cache
+  ansible.builtin.copy:
+    src: "{{ weaverssh_archive_path }}"
+    dest: "{{ weaverssh_controller_cache_dir }}/{{ weaverssh_archive_name }}"
+    mode: "0644"
+  delegate_to: localhost
+  when: weaverssh_archive_path | length > 0
+
+- name: Download weaverssh archive to controller cache
+  ansible.builtin.get_url:
+    url: "{{ weaverssh_effective_archive_url }}"
+    dest: "{{ weaverssh_controller_cache_dir }}/{{ weaverssh_archive_name }}"
+    mode: "0644"
+    checksum: "{{ ('sha256:' ~ weaverssh_checksum_value) if weaverssh_checksum_value else omit }}"
+  delegate_to: localhost
+  when: weaverssh_archive_path | length == 0
+
+- name: Verify controller archive checksum when provided
+  ansible.builtin.stat:
+    path: "{{ weaverssh_controller_cache_dir }}/{{ weaverssh_archive_name }}"
+    checksum_algorithm: sha256
+  register: weaverssh_controller_archive_stat
+  delegate_to: localhost
+  when: weaverssh_checksum_value | length > 0
+
+- name: Assert controller archive checksum
+  ansible.builtin.assert:
+    that:
+      - weaverssh_controller_archive_stat.stat.checksum == weaverssh_checksum_value
+    fail_msg: "controller archive checksum mismatch for {{ weaverssh_archive_name }}"
+  when: weaverssh_checksum_value | length > 0
+
+- name: Extract weaverssh archive on controller
+  ansible.builtin.unarchive:
+    src: "{{ weaverssh_controller_cache_dir }}/{{ weaverssh_archive_name }}"
+    dest: "{{ weaverssh_controller_cache_dir }}"
+    remote_src: true
+    creates: "{{ weaverssh_controller_cache_dir }}/{{ weaverssh_package_root }}/bin/{{ weaverssh_binary_name }}"
+  delegate_to: localhost
+
+- name: Record controller-local wv path
+  ansible.builtin.set_fact:
+    weaverssh_controller_wv_path: "{{ weaverssh_controller_cache_dir }}/{{ weaverssh_package_root }}/bin/{{ weaverssh_binary_name }}"

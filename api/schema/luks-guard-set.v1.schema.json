@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/luks-guard-set.v1.schema.json",
+  "title": "WeaverSSH LUKS Live Guard Set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "volumes"],
+  "properties": {
+    "version": {"const": "weaverssh.luks-guard-set.v1"},
+    "name": {"type": "string", "pattern": "^[a-z0-9._-]{1,128}$"},
+    "revalidate_interval": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[^\\u0000\\r\\n]+$"},
+    "timeout": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[^\\u0000\\r\\n]+$"},
+    "volumes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[^\\u0000\\r\\n]+$"}
+    }
+  }
+}

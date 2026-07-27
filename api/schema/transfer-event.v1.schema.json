@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/transfer-event.v1.schema.json",
+  "title": "WeaverSSH Transfer Event",
+  "type": "object",
+  "required": ["version", "plan_id", "state", "occurred_at_unix_nano"],
+  "properties": {
+    "version": {"const": "weaverssh.transfer-event.v1"},
+    "plan_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "operation_id": {"type": "string", "maxLength": 128},
+    "state": {"type": "string", "minLength": 1, "maxLength": 128},
+    "attempt": {"type": "integer", "minimum": 0},
+    "source": {"type": "string", "maxLength": 4096},
+    "destination": {"type": "string", "maxLength": 4096},
+    "record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "error": {"type": "string", "maxLength": 4096},
+    "replay_id": {"type": "string", "maxLength": 128},
+    "replayed_from_plan_id": {"type": "string", "maxLength": 128},
+    "replayed_from_record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "replay_generation": {"type": "integer", "minimum": 1},
+    "replay_reason": {"type": "string", "maxLength": 4096},
+    "clone_only": {"type": "boolean"},
+    "occurred_at_unix_nano": {"type": "integer", "minimum": 1}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,18 @@
+# weaverssh test fixture: a small mesh that also forms a connection path
+# (workstation -> jump -> compute). Feed it with:
+#   wv connections scan --ssh-config connectionscan/testdata/mesh.sshconfig
+Host workstation
+    HostName 127.0.0.1
+    User dev
+
+Host jump bastion
+    HostName bastion.example.net
+    User relay
+    Port 2222
+    IdentityFile ~/.ssh/id_jump
+
+Host compute
+    HostName 10.0.0.5
+    User builder
+    ProxyJump jump
+    IdentityFile ~/.ssh/id_compute

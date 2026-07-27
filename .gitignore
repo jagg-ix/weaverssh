@@ -1,0 +1,120 @@
+# Binaries and build artifacts
+/bin/
+/build/
+/dist/
+/out/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+# Stray binaries built at repo root (canonical output is /build/)
+/wv
+/wv-server
+/wv-client
+/wv-agent
+/wv-socks
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Dependency directories
+/vendor/
+
+# IDE files
+.idea/
+.vscode/
+.clj-kondo/
+.lsp/
+*.swp
+*.swo
+.DS_Store
+
+# Log files
+*.log
+
+# Local test run stats (intentionally untracked)
+.weaverssh-test-stats.md
+.weaverssh-test-stats.md
+
+# Generated test output and reports
+/artifacts/
+/verification_results/
+.coverage
+
+# Python caches
+__pycache__/
+*.pyc
+
+# Editor backups
+*.bak
+
+# VS Code extension generated artifacts
+/extensions/vscode-sshx11/node_modules/
+/extensions/vscode-sshx11/dist/
+
+# Lean build artifacts
+/verification/lean/.lake/
+
+# Python packaging artifacts
+*.egg-info/
+.eggs/
+*.whl
+
+# Root-level binaries produced by package/smoke validation
+/weaverssh
+/weaverssh-validate
+
+# Jepsen/Clojure local caches
+.cpcache/
+/tools/jepsen/weaverssh/.cpcache/
+
+# Python virtual environments and tool caches
+.venv/
+venv/
+.tox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+coverage.xml
+.coverage.*
+pip-wheel-metadata/
+
+# Local environment overrides; commit explicit examples instead
+.env
+.env.local
+*.local.ini
+*.local.json
+
+# Ansible local retry/cache output
+*.retry
+.ansible/
+
+# Packaging outputs generated from tracked recipes/scripts
+/packages/
+/release/
+/packaging/dist/
+/packaging/output/
+/packaging/homebrew/*.tar.gz
+/packaging/homebrew/*.sha256
+/packaging/snap/*.snap
+/packaging/snap/*.assert
+/packaging/snap/parts/
+/packaging/snap/prime/
+/packaging/snap/stage/
+/packaging/snap/.snapcraft/
+
+# Personal/local MCP + editor tooling (never commit)
+.mcp.json
+node_modules/
+*.vsix
+
+# Generated at release time by go-licenses (see .goreleaser.yaml before-hook)
+/THIRD_PARTY_NOTICES.md

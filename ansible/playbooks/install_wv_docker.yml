@@ -1,0 +1,9 @@
+---
+- name: Install weaverssh wv binary into a Docker container
+  hosts: localhost
+  gather_facts: true
+  become: false
+  vars:
+    weaverssh_target_type: docker
+  roles:
+    - role: weaverssh_wv

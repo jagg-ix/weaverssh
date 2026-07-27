@@ -1,0 +1,312 @@
+.TH WV 1 "July 2026" "weaverssh" "User Commands"
+.SH NAME
+wv \- bounded, bidirectional services over an authenticated SSH session
+.SH SYNOPSIS
+.B wv
+.I command
+.RI [ options ]
+.br
+.B wv
+.RB [ \-h | \-\-help ]
+.br
+.B wv
+.RB [ \-v | \-\-version ]
+.SH DESCRIPTION
+.B wv
+is the unified command-line interface for weaverssh. It bootstraps through an
+existing OpenSSH X11 channel, authenticates the X11 cookie, upgrades the stream
+to WebSocket, and multiplexes bounded control, filesystem, TCP, UDP, event, and
+policy services.
+.PP
+The dynamic-session path does not require operator-selected
+.B ssh \-L
+or
+.B ssh \-R
+ports. Signed node contexts identify the ordered topology and capabilities.
+Local brokers are published as user-private IPC endpoints for other
+.B wv
+processes owned by the same account.
+.SH COMMAND GROUPS
+.SS Dynamic session and credentials
+.TP
+.B keygen
+Generate Ed25519 issuer or service keys.
+.TP
+.B ssh-agent
+Inspect or manage OpenSSH agent identities used by weaverssh.
+.TP
+.B authproof
+Issue and verify short-lived runtime grants.
+.TP
+.B reconnect-identity
+Issue and verify reconnect identities.
+.TP
+.B session-host
+Allocate an isolated X display, invoke OpenSSH, and serve local capabilities.
+.TP
+.B attach
+Attach through
+.B DISPLAY
+and publish the stable user-private broker on the receiving node.
+.TP
+.B api
+Query the in-band session API, topology, capabilities, and route selection.
+.TP
+.B api-contract
+Validate or evolve versioned API description contracts.
+.TP
+.B origin-runtime
+Resolve native, WSL, Docker, Kubernetes, or VM origin environments.
+.TP
+.B connectivity
+Diagnose optional SSH network underlays.
+.SS Routed operations
+.TP
+.B exec
+Run a policy-named action on a signed node.
+.TP
+.B events
+Publish or subscribe through a signed node.
+.TP
+.B connect
+Open a routed TCP stream. The final owning node performs the destination dial.
+.TP
+.B session-proxy
+Run a SOCKS5 CONNECT, BIND, and UDP ASSOCIATE listener.
+.TP
+.B socks-connect
+Use the private proof-aware SOCKS5 CONNECT client.
+.TP
+.B socks-bind
+Use the proof-aware SOCKS5 BIND client.
+.TP
+.B socks-udp
+Use the proof-aware SOCKS5 UDP client.
+.TP
+.B socks-policy
+Validate and administer proof principals, destinations, capabilities, and TTLs.
+.TP
+.B socket-engine
+Manage bounded listeners with authenticated status, reload, and stop control.
+.TP
+.B mqtt-grpc
+Carry gRPC HTTP/2 bytes as MQTT frames inside the active session.
+.TP
+.B mqtt-grpc-proof
+Add fresh principal proofs to MQTT-framed gRPC connections.
+.TP
+.B mqtt-grpc-engine
+Supervise mixed TCP and MQTT-framed gRPC listeners.
+.SS Policy, audit, and time
+.TP
+.B rules
+Evaluate deterministic native rules and policy pipelines.
+.TP
+.B opa
+Evaluate OPA Rego decisions and hybrid policy pipelines.
+.TP
+.B policy-runtime
+Apply one policy pipeline across transfers, events, and files.
+.TP
+.B policy-admin
+Query, revise, activate, rollback, and distribute policy.
+.TP
+.B compliance
+Run audit hooks, subject screening, evidence verification, and report export.
+.TP
+.B evidence
+Build signed Merkle checkpoints and optional external anchors.
+.TP
+.B chrono
+Generate and merge causal or uncertainty-aware clock stamps.
+.SS Storage and VFS
+.TP
+.B storage
+Inspect, query, mutate, or migrate registered storage engines.
+.TP
+.B vfs-compose
+Create union or copy-on-write views, transactions, delegated engines,
+snapshots, and data policies.
+.TP
+.B vfs-crypt
+Manage recipient-scoped X25519 encryption over delegated VFS views.
+.TP
+.B luks-volume
+Verify and administer LUKS1 or LUKS2-backed local VFS storage.
+.TP
+.B 9p-adapter
+Expose or consume the authorized 9P service.
+.SS Files
+.TP
+.B ls NODE:/PATH
+List an exported session path.
+.TP
+.B cat NODE:/PATH
+Write a remote regular file to standard output.
+.TP
+.B stat [--json] NODE:/PATH
+Inspect remote metadata.
+.TP
+.B cp [\-r] [--replace-tree] [--no-preserve-metadata] SOURCE DESTINATION
+Copy local-to-node, node-to-local, or node-to-node. Recursive copy uses a
+transactional staged tree and preserves safe symlinks plus mode and modification
+time metadata unless disabled.
+.TP
+.B mkdir [\-p] NODE:/PATH
+Create a remote directory.
+.TP
+.B rm [\-r] NODE:/PATH
+Remove a remote file or tree according to command policy.
+.TP
+.B rmdir NODE:/PATH
+Remove a remote directory.
+.TP
+.B mount NODE:/ MOUNTPOINT
+Mount an authorized routed filesystem where the platform backend is available.
+.TP
+.B transfer
+Run, reconstruct, or replay policy-gated transfer transactions.
+.SH SESSION PATHS
+Session paths use a concrete signed node ID and a path relative to that node's
+explicitly exported root:
+.PP
+.nf
+NODE:/relative/path
+node:NODE:/relative/path
+.fi
+.PP
+The form
+.B user@host:/path
+remains SSH/SCP syntax and is not rewritten. The form
+.B NODE:~/path
+is undefined because session paths are rooted in explicit exports.
+.SH BASIC SESSION EXAMPLE
+On the workstation:
+.PP
+.nf
+wv session-host \
+  --root "$HOME/shared" \
+  --tcp-allow '127.0.0.1:8080,*.corp.internal:443' \
+  --node-context workstation.context.json \
+  --public-key-file issuer.key.pub \
+  -- ssh -X user@compute-node
+.fi
+.PP
+Inside the resulting remote shell:
+.PP
+.nf
+wv attach \
+  --node-context compute-node.context.json \
+  --public-key-file issuer.key.pub \
+  --root "$HOME/compute-shared" \
+  --tcp-allow '127.0.0.1:3000,db.internal:5432' \
+  --udp-allow '127.0.0.1:53,*.internal:53'
+.fi
+.PP
+Keep
+.B wv attach
+active. From another shell owned by the same remote account:
+.PP
+.nf
+wv api --json topology
+wv cp ./input.dat compute-node:/jobs/input.dat
+wv cp compute-node:/results/result.bin ./result.bin
+wv connect compute-node 127.0.0.1:3000
+.fi
+.SH RECURSIVE SESSIONS
+Recursive receiving SSH servers must accept both variables:
+.PP
+.nf
+AcceptEnv WVORIGIN WVHOP
+.fi
+.PP
+Use
+.B session-host --recursive
+with a dedicated hop-signing identity and an OpenSSH allowed-signers file. Each
+hop sets
+.B WVORIGIN
+to the immediate previous node and carries the complete signed ancestry in
+.B WVHOP .
+.PP
+Agent forwarding is security-sensitive. Prefer dedicated hop keys, narrow signer
+policies, short TTLs, and node-local agents on trusted intermediates.
+.SH SOCKS5 PROOF EXAMPLE
+Validate a proof policy:
+.PP
+.nf
+wv socks-policy validate socks-policy.json
+.fi
+.PP
+Require signed TCP requests on the final node by passing
+.B --tcp-proof-policy
+and
+.B --tcp-require-proof
+to
+.B wv attach .
+Start a loopback proxy:
+.PP
+.nf
+wv session-proxy \
+  --node compute-node \
+  --auth proof \
+  --proof-policy socks-policy.json \
+  --listen 127.0.0.1:1080
+.fi
+.PP
+Then connect with a pinned server ID, canonical policy digest, final node,
+principal, and signing identity using
+.B wv socks-connect .
+.SH SECURITY
+Node registration is signed and bound to the upgraded session. Services require
+advertised signed capabilities plus installed local implementations. TCP and UDP
+destination policies are independent and deny by default.
+.PP
+Proof-aware SOCKS authorization does not make a fully compromised final host
+trustworthy. A privileged attacker on that host can replace binaries or policy,
+inspect memory, bypass the service, or dial directly. Stronger assurance requires
+measured boot, remote attestation, a trusted execution environment, or an
+authorization service outside that administrator's control.
+.PP
+Proof authentication does not encrypt a non-loopback client-to-proxy TCP hop.
+Keep listeners loopback-only or protect that hop separately.
+.SH ENVIRONMENT
+.TP
+.B WVORIGIN
+Concrete signed ID of the immediate previous node for the current SSH hop.
+.TP
+.B WVHOP
+Complete SSHSIG-authenticated recursive ancestry, when recursive mode is used.
+.TP
+.B DISPLAY
+OpenSSH-provided X11 display used by the dynamic-session bootstrap.
+.TP
+.B SSH_AUTH_SOCK
+OpenSSH agent socket used when a command selects an SSH-agent signer.
+.SH EXIT STATUS
+Commands return zero on success and non-zero on validation, authorization,
+transport, policy, or usage failure. Usage errors conventionally return 2.
+.SH FILES
+.TP
+.I ~/.config/weaverssh/
+Typical location for node contexts, public verification keys, signer policy,
+and example configuration.
+.TP
+.I ~/.ssh/
+Typical location for dedicated SSHSIG hop keys and SOCKS principal keys.
+.TP
+.I man/wv.1
+Source manpage in the repository.
+.SH SEE ALSO
+.BR ssh (1),
+.BR ssh-add (1),
+.BR ssh-keygen (1),
+.BR ssh_config (5),
+.BR sshd_config (5),
+.BR xauth (1)
+.PP
+Project documentation includes the README, the files under
+.I docs/usage/
+and
+.I docs/architecture/,
+and the runnable planning scripts under
+.I scripts/ .

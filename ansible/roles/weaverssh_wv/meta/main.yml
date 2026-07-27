@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  role_name: weaverssh_wv
+  namespace: weaverssh
+  author: weaverssh maintainers
+  description: Install the source-free weaverssh wv binary distribution into a user home directory.
+  license: Apache-2.0
+  min_ansible_version: "2.12"
+  platforms:
+    - name: EL
+      versions: ["8", "9"]
+    - name: Debian
+      versions: ["bullseye", "bookworm"]
+    - name: Ubuntu
+      versions: ["jammy", "noble"]
+    - name: MacOSX
+      versions: ["all"]
+    - name: FreeBSD
+      versions: ["all"]
+    - name: OpenBSD
+      versions: ["all"]
+dependencies: []

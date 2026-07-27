@@ -1,0 +1,24 @@
+{
+  "version": "weaverssh.workspace.v1",
+  "target_node": "dev-node-1",
+  "connection": {
+    "type": "ssh",
+    "ssh_host": "wv-dev-node",
+    "underlay": "nebula",
+    "overlay_address": "10.80.0.20"
+  },
+  "remote_root": "/workspace/project",
+  "session_host": {
+    "local_root": ".",
+    "node_context": "workstation.context.json",
+    "public_key_file": "weaverssh.key.pub",
+    "ssh_args": ["-X"]
+  },
+  "services": [
+    {
+      "name": "Web application",
+      "node": "dev-node-1",
+      "address": "127.0.0.1:3000"
+    }
+  ]
+}

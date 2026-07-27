@@ -1,0 +1,93 @@
+name: sshx11-system-e2e
+
+services:
+  sshd:
+    image: alpine:3.20
+    command: ["sh", "-lc", "while :; do sleep 3600; done"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /etc/alpine-release"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - control_plane
+      - data_plane
+
+  bastion:
+    image: alpine:3.20
+    command: ["sh", "-lc", "while :; do sleep 3600; done"]
+    restart: unless-stopped
+    depends_on:
+      - sshd
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /etc/alpine-release"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - control_plane
+
+  socks5:
+    image: alpine:3.20
+    command: ["sh", "-lc", "while :; do sleep 3600; done"]
+    restart: unless-stopped
+    depends_on:
+      - bastion
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /etc/alpine-release"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - control_plane
+      - data_plane
+
+  websocket_gateway:
+    image: alpine:3.20
+    command: ["sh", "-lc", "while :; do sleep 3600; done"]
+    restart: unless-stopped
+    depends_on:
+      - socks5
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /etc/alpine-release"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - control_plane
+
+  transport_gateway:
+    image: alpine:3.20
+    command: ["sh", "-lc", "while :; do sleep 3600; done"]
+    restart: unless-stopped
+    depends_on:
+      - websocket_gateway
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /etc/alpine-release"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - data_plane
+
+  x11_probe:
+    image: alpine:3.20
+    command: ["sh", "-lc", "while :; do sleep 3600; done"]
+    restart: unless-stopped
+    depends_on:
+      - transport_gateway
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /etc/alpine-release"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - data_plane
+
+networks:
+  control_plane:
+    driver: bridge
+  data_plane:
+    driver: bridge
+

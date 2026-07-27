@@ -1,0 +1,54 @@
+---
+- name: Create install directory inside Kubernetes pod
+  ansible.builtin.command: >-
+    {{ weaverssh_kubectl }} -n {{ weaverssh_kubernetes_namespace }} exec {{ weaverssh_kubernetes_pod }}
+    {{ weaverssh_kubectl_container_arg }} -- {{ weaverssh_container_shell }} -lc
+    'mkdir -p {{ weaverssh_container_install_dir }}'
+  changed_when: true
+  delegate_to: localhost
+
+- name: Copy wv binary into Kubernetes pod
+  ansible.builtin.command: >-
+    {{ weaverssh_kubectl }} -n {{ weaverssh_kubernetes_namespace }} cp
+    {{ weaverssh_controller_wv_path }}
+    {{ weaverssh_kubernetes_pod }}:{{ weaverssh_container_install_dir }}/wv
+    {{ weaverssh_kubectl_container_arg }}
+  changed_when: true
+  delegate_to: localhost
+
+- name: Mark wv executable inside Kubernetes pod
+  ansible.builtin.command: >-
+    {{ weaverssh_kubectl }} -n {{ weaverssh_kubernetes_namespace }} exec {{ weaverssh_kubernetes_pod }}
+    {{ weaverssh_kubectl_container_arg }} -- {{ weaverssh_container_shell }} -lc
+    'chmod 0755 {{ weaverssh_container_install_dir }}/wv'
+  changed_when: true
+  delegate_to: localhost
+
+- name: Smoke test Kubernetes wv version
+  ansible.builtin.command: >-
+    {{ weaverssh_kubectl }} -n {{ weaverssh_kubernetes_namespace }} exec {{ weaverssh_kubernetes_pod }}
+    {{ weaverssh_kubectl_container_arg }} -- {{ weaverssh_container_install_dir }}/wv version
+  register: weaverssh_kubernetes_version_result
+  changed_when: false
+  delegate_to: localhost
+  when: weaverssh_run_smoke_test | bool
+
+- name: Smoke test Kubernetes wv help
+  ansible.builtin.command: >-
+    {{ weaverssh_kubectl }} -n {{ weaverssh_kubernetes_namespace }} exec {{ weaverssh_kubernetes_pod }}
+    {{ weaverssh_kubectl_container_arg }} -- {{ weaverssh_container_install_dir }}/wv help
+  changed_when: false
+  delegate_to: localhost
+  when: weaverssh_run_smoke_test | bool
+
+- name: Report Kubernetes weaverssh install result
+  ansible.builtin.debug:
+    msg:
+      install_dir: "{{ weaverssh_container_install_dir }}"
+      binary: "{{ weaverssh_container_install_dir }}/wv"
+      target: "{{ weaverssh_target_label }}"
+      mode: "kubernetes"
+      namespace: "{{ weaverssh_kubernetes_namespace }}"
+      pod: "{{ weaverssh_kubernetes_pod }}"
+      container: "{{ weaverssh_kubernetes_container | default('') }}"
+      version_output: "{{ weaverssh_kubernetes_version_result.stdout | default('smoke disabled') }}"

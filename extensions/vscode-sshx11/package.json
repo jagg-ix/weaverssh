@@ -1,0 +1,399 @@
+{
+  "name": "vscode-sshx11",
+  "displayName": "SSHX11 Ops",
+  "description": "VS Code commands for SSHX11 SOCKS fallback, reverse SOCKS, WebDAV, and extension-host workflows with SSH proxy + ssh-agent compatibility.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "license": "MIT",
+  "keywords": [
+    "ssh",
+    "x11",
+    "socks",
+    "reverse-socks",
+    "webdav",
+    "networking",
+    "operations",
+    "devops"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:sshx11.api.getSettingsSnapshot",
+    "onCommand:sshx11.api.runOpsCommand",
+    "onCommand:sshx11.api.runNamedCommand",
+    "onCommand:sshx11.api.showConfigure",
+    "onCommand:sshx11.api.listUiActions",
+    "onCommand:sshx11.api.describeUiAction",
+    "onCommand:sshx11.api.runUiAction",
+    "onCommand:sshx11.api.describeFeaturePlugin",
+    "onCommand:sshx11.api.discoverFeaturePlugins",
+    "onCommand:sshx11.api.listFeaturePlugins",
+    "onCommand:sshx11.configure",
+    "onCommand:sshx11.startServices",
+    "onCommand:sshx11.stopServices",
+    "onCommand:sshx11.statusLocal",
+    "onCommand:sshx11.socksFallbackStart",
+    "onCommand:sshx11.vscodeProfileGen",
+    "onCommand:sshx11.verifyExtensionHosts",
+    "onCommand:sshx11.reverseSocksSmoke",
+    "onCommand:sshx11.webdavStart",
+    "onCommand:sshx11.ninepStart",
+    "onCommand:sshx11.ninepStatus",
+    "onCommand:sshx11.ninepStop",
+    "onCommand:sshx11.ninepPlan",
+    "onCommand:sshx11.openWorkflowsDoc"
+  ],
+  "main": "./dist/extension.js",
+  "icon": "assets/sshx11-icon.png",
+  "contributes": {
+    "commands": [
+      {
+        "command": "sshx11.configure",
+        "title": "SSHX11: Configure",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.startServices",
+        "title": "SSHX11: Start Services",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.stopServices",
+        "title": "SSHX11: Stop Services",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.statusLocal",
+        "title": "SSHX11: Status (Local)",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.socksFallbackStart",
+        "title": "SSHX11: Start SOCKS Fallback",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.vscodeProfileGen",
+        "title": "SSHX11: Generate VS Code Profiles",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.verifyExtensionHosts",
+        "title": "SSHX11: Verify Extension Hosts",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.reverseSocksSmoke",
+        "title": "SSHX11: Reverse SOCKS Smoke",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.webdavStart",
+        "title": "SSHX11: Start WebDAV",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.ninepStart",
+        "title": "SSHX11: Start 9P Service",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.ninepStatus",
+        "title": "SSHX11: 9P Service Status",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.ninepStop",
+        "title": "SSHX11: Stop 9P Service",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.ninepPlan",
+        "title": "SSHX11: Plan 9P Service",
+        "category": "SSHX11"
+      },
+      {
+        "command": "sshx11.openWorkflowsDoc",
+        "title": "SSHX11: Open Workflow Documentation",
+        "category": "SSHX11"
+      }
+    ],
+    "configuration": {
+      "title": "SSHX11",
+      "properties": {
+        "sshx11.opsScriptPath": {
+          "type": "string",
+          "default": "tools/verification/sshx11_ops.sh",
+          "description": "Path to sshx11_ops.sh, relative to the current workspace root or absolute."
+        },
+        "sshx11.showStatusBarConfigure": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the SSHX11 Configure widget in the VS Code status bar."
+        },
+        "sshx11.widgetLocation": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "bottom",
+            "top"
+          ],
+          "default": "auto",
+          "description": "Configure widget placement: auto (defaults to bottom, most common), bottom (status bar), or top (window frame actions)."
+        },
+        "sshx11.verbose": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable extra extension-side notifications and output traces when launching SSHX11 commands."
+        },
+        "sshx11.defaultRemoteHost": {
+          "type": "string",
+          "default": "",
+          "description": "Default remote host used by reverse SOCKS smoke command."
+        },
+        "sshx11.defaultRemoteUser": {
+          "type": "string",
+          "default": "root",
+          "description": "Default remote user used by reverse SOCKS smoke command."
+        },
+        "sshx11.defaultIdentityFile": {
+          "type": "string",
+          "default": "~/.ssh/id_ed25519",
+          "description": "Default SSH identity file for reverse SOCKS smoke command."
+        },
+        "sshx11.defaultSshConfigPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional SSH client config path passed as --ssh-config (OpenSSH -F)."
+        },
+        "sshx11.defaultSshProxyJump": {
+          "type": "string",
+          "default": "",
+          "description": "Optional SSH ProxyJump value passed as --proxy-jump."
+        },
+        "sshx11.defaultSshProxyCommand": {
+          "type": "string",
+          "default": "",
+          "description": "Optional SSH ProxyCommand string passed as --proxy-command."
+        },
+        "sshx11.sshVerbosity": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 3,
+          "description": "SSH verbose flag count passed as --ssh-verbosity (0..3 => off/-v/-vv/-vvv)."
+        },
+        "sshx11.sshLogLevel": {
+          "type": "string",
+          "enum": [
+            "",
+            "QUIET",
+            "FATAL",
+            "ERROR",
+            "INFO",
+            "VERBOSE",
+            "DEBUG",
+            "DEBUG1",
+            "DEBUG2",
+            "DEBUG3"
+          ],
+          "default": "",
+          "description": "SSH LogLevel passed as --ssh-log-level."
+        },
+        "sshx11.sshLogFile": {
+          "type": "string",
+          "default": "",
+          "description": "SSH client log file path passed as --ssh-log-file."
+        },
+        "sshx11.agentMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "require",
+            "disable"
+          ],
+          "default": "auto",
+          "description": "ssh-agent mode passed as --agent-mode (auto, require, disable)."
+        },
+        "sshx11.forwardAgent": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable agent forwarding (-A) for reverse SOCKS and extension-host verify commands."
+        },
+        "sshx11.identityAgent": {
+          "type": "string",
+          "default": "",
+          "description": "Optional IdentityAgent value (socket, env:VAR, pageant:, PuTTY/Pageant/antagent bridge) passed as --identity-agent."
+        },
+        "sshx11.sshClientAdapter": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "puttyPlink",
+            "kittySsh",
+            "windowsOpenSSH",
+            "cygwinOpenSSH",
+            "gitForWindowsOpenSSH",
+            "msys2OpenSSH",
+            "wslOpenSSH",
+            "bitviseSshClient",
+            "secureCRT",
+            "xshell",
+            "mobaxtermSsh",
+            "tectiaSsh",
+            "termiusSsh",
+            "winscp",
+            "openSSH",
+            "dropbear",
+            "paramikoPython",
+            "asyncsshPython"
+          ],
+          "default": "auto",
+          "description": "Preferred SSH client adapter used for launch/probe selection. Vendor and open-source clients remain adapters only; weaverssh owns the X11/WebSocket data plane."
+        },
+        "sshx11.virtualizationLayer": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "none",
+            "wsl",
+            "hyperV",
+            "vmware",
+            "virtualBox",
+            "parallels",
+            "qemuKvm",
+            "libvirt",
+            "docker",
+            "podman",
+            "lxc",
+            "multipass",
+            "lima",
+            "colima",
+            "utm"
+          ],
+          "default": "auto",
+          "description": "Preferred virtualization/guest-host adapter for launch/probe selection. WSL, VM, and container layers are host/guest bridge adapters only; weaverssh owns the X11/WebSocket data plane."
+        },
+        "sshx11.remotePlatform": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "linux",
+            "linux-generic",
+            "linux-headless",
+            "linux-gui",
+            "macos",
+            "freebsd",
+            "freebsd-generic",
+            "freebsd-gui",
+            "openbsd",
+            "aix",
+            "solaris",
+            "zos",
+            "generic"
+          ],
+          "default": "auto",
+          "description": "Remote platform profile passed as --remote-platform for compatibility probes. SSH clients/keyrings/service managers are launch adapters only; weaverssh binaries own the X11/WebSocket data plane."
+        },
+        "sshx11.remoteShellBin": {
+          "type": "string",
+          "default": "sh",
+          "description": "Remote shell binary passed as --remote-shell-bin (for example sh, ksh, /bin/ksh)."
+        },
+        "sshx11.remoteShellLogin": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use login shell mode for remote probes (--remote-shell-login / --no-remote-shell-login)."
+        },
+        "sshx11.remotePythonBin": {
+          "type": "string",
+          "default": "",
+          "description": "Preferred remote Python executable passed as --remote-python-bin."
+        },
+        "sshx11.insecureHostKey": {
+          "type": "boolean",
+          "default": false,
+          "description": "Add --insecure-hostkey to reverse SOCKS smoke command."
+        },
+        "sshx11.setupKind": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "localUser",
+            "workspace",
+            "organizationManaged",
+            "manual"
+          ],
+          "default": "auto",
+          "description": "Selected setup source for adapter discovery: auto, local user, workspace, organization-managed, or manual."
+        },
+        "sshx11.organizationProvider": {
+          "type": "string",
+          "enum": [
+            "none",
+            "github",
+            "gitlab",
+            "okta",
+            "azureAD",
+            "customMcp",
+            "localPolicy"
+          ],
+          "default": "none",
+          "description": "Organization provider used to authorize and scope weaverssh sessions; providers never own the data plane."
+        },
+        "sshx11.chainConnector": {
+          "type": "string",
+          "enum": [
+            "none",
+            "vscodeExtension",
+            "localContextMcp",
+            "sshConfig",
+            "enterpriseConnector"
+          ],
+          "default": "none",
+          "description": "Connector allowed to administer local and SSH-chain connection setup while weaverssh owns the X11/WebSocket data plane."
+        },
+        "sshx11.organizationConfigPath": {
+          "type": "string",
+          "default": "",
+          "description": "Optional organization policy/config path consumed by adapter discovery."
+        }
+      }
+    },
+    "menus": {
+      "commandCenter": [
+        {
+          "command": "sshx11.configure",
+          "when": "sshx11WidgetTop",
+          "group": "navigation@90"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "sshx11.configure",
+          "when": "sshx11WidgetTop",
+          "group": "navigation@90"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "clean": "rimraf dist",
+    "smoke:api": "python3 scripts/smoke_api_contract.py",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^2.26.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.6.3"
+  }
+}

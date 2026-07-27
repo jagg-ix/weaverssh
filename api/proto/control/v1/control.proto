@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package weaverssh.control.v1;
+
+option go_package = "weaverssh/api/gen/control/v1;controlv1";
+
+message Empty {}
+
+message Node {
+  string id = 1;
+  int32 index = 2;
+  bool registered = 3;
+  repeated string services = 4;
+}
+
+message SessionSnapshot {
+  string protocol = 1;
+  string binding = 2;
+  string current_node = 3;
+  int32 current_index = 4;
+  repeated string topology = 5;
+  repeated Node nodes = 6;
+  repeated string features = 7;
+}
+
+message ResolveNodeRequest {
+  string node = 1;
+}
+
+message ResolveNodeResponse {
+  string node = 1;
+  int32 index = 2;
+}
+
+message PrepareRouteRequest {
+  string node = 1;
+  string service = 2;
+}
+
+message RoutePlan {
+  string target_node = 1;
+  int32 target_index = 2;
+  string direction = 3;
+  string next_hop = 4;
+  string next_binding = 5;
+  string service = 6;
+  bool available = 7;
+  bool uses_current_session = 8;
+}
+
+message ContractDescriptor {
+  string id = 1;
+  string contract_version = 2;
+  string kind = 3;
+  string stability = 4;
+  string sha256 = 5;
+}
+
+message ContractList {
+  repeated ContractDescriptor contracts = 1;
+}
+
+service SessionControl {
+  rpc Describe(Empty) returns (SessionSnapshot);
+  rpc ResolveNode(ResolveNodeRequest) returns (ResolveNodeResponse);
+  rpc PrepareRoute(PrepareRouteRequest) returns (RoutePlan);
+  rpc ListContracts(Empty) returns (ContractList);
+}

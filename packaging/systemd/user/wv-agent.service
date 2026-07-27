@@ -1,0 +1,19 @@
+[Unit]
+Description=weaverssh edge agent
+Documentation=file:/usr/share/doc/weaverssh/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=WEAVERSSH_AGENT_LISTEN=127.0.0.1:6000
+Environment=WEAVERSSH_LOG_LEVEL=info
+EnvironmentFile=-%h/.config/weaverssh/wv-agent.env
+ExecStart=/usr/bin/wv-agent -listen ${WEAVERSSH_AGENT_LISTEN} -loglevel ${WEAVERSSH_LOG_LEVEL}
+Restart=on-failure
+RestartSec=2s
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

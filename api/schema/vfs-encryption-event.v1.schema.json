@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/vfs-encryption-event.v1.schema.json",
+  "title": "WeaverSSH VFS Encryption Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "operation", "path", "encrypted", "authorized", "occurred_at_unix_nano"],
+  "properties": {
+    "version": {"const": "weaverssh.vfs-encryption-event.v1"},
+    "operation": {"type": "string", "minLength": 1, "maxLength": 128},
+    "path": {"type": "string", "maxLength": 4096},
+    "encrypted": {"type": "boolean"},
+    "authorized": {"type": "boolean"},
+    "ciphertext_view": {"type": "boolean"},
+    "key_id": {"type": "string", "pattern": "^x25519-[0-9a-f]{32}$"},
+    "node_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    "recipient_key_ids": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^x25519-[0-9a-f]{32}$"}
+    },
+    "plaintext_size": {"type": "integer", "minimum": 0},
+    "plaintext_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "error": {"type": "string", "maxLength": 4096},
+    "occurred_at_unix_nano": {"type": "integer", "minimum": 1}
+  }
+}

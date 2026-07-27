@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/vfs-delegation-report.v1.schema.json",
+  "title": "WeaverSSH VFS Delegation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "request", "native", "success", "reduction", "post_reduction", "summary"],
+  "properties": {
+    "version": {"const": "weaverssh.vfs-delegation-report.v1"},
+    "request": {"$ref": "vfs-delegation-request.v1.schema.json"},
+    "handled_by": {"type": "string", "pattern": "^[a-z0-9._-]{1,128}$"},
+    "native": {"type": "boolean"},
+    "success": {"type": "boolean"},
+    "error": {"type": "string", "maxLength": 4096},
+    "reduction": {"$ref": "vfs-delegation-observation.v1.schema.json#/$defs/reduction"},
+    "post_reduction": {"$ref": "vfs-delegation-observation.v1.schema.json#/$defs/reduction"},
+    "summary": {"$ref": "vfs-delegation-observation.v1.schema.json#/$defs/summary"},
+    "diagnostics": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["engine", "phase", "error"],
+        "properties": {
+          "engine": {"type": "string", "pattern": "^[a-z0-9._-]{1,128}$"},
+          "phase": {"enum": ["evaluate", "decision", "observe", "observe-map"]},
+          "error": {"type": "string", "maxLength": 4096}
+        }
+      }
+    }
+  }
+}

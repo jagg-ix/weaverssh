@@ -1,0 +1,58 @@
+---
+# Install target type:
+# - posix: install over normal Ansible SSH/connection into the target user's home
+# - docker: install into a local Docker/compatible container from the controller
+# - kubernetes: install into a Kubernetes pod from the controller using kubectl
+weaverssh_target_type: "posix"
+
+# Default to a non-root, user-home installation for POSIX hosts. This matches
+# the production binary distribution installer and works on locked-down hosts.
+weaverssh_version: "0.1.0"
+weaverssh_release: "1"
+weaverssh_install_dir: "{{ ansible_env.HOME }}/.weaverssh/bin"
+weaverssh_cache_dir: "{{ ansible_env.HOME }}/.weaverssh/cache"
+weaverssh_binary_name: "wv"
+
+# Controller-local cache for Docker/Kubernetes installs. The archive is extracted
+# on the controller and only bin/wv is copied into the container/pod.
+weaverssh_controller_cache_dir: "/tmp/weaverssh-ansible"
+weaverssh_container_install_dir: "/tmp/.weaverssh/bin"
+weaverssh_container_shell: "/bin/sh"
+
+# Provide either weaverssh_archive_path for a controller-local archive produced by
+# `make binary-dist`, or weaverssh_release_base_url for a remotely hosted release.
+weaverssh_archive_path: ""
+weaverssh_release_base_url: "https://weaverssh.com/releases"
+weaverssh_archive_url: ""
+
+# Optional checksum. Accepts either raw SHA-256 or Ansible get_url format
+# `sha256:<hex>`.
+weaverssh_archive_checksum: ""
+
+# Docker target variables. `weaverssh_docker_runtime` may be docker, podman, or a
+# fully qualified compatible runtime binary.
+weaverssh_docker_runtime: "docker"
+weaverssh_docker_container: ""
+
+# Kubernetes target variables. `weaverssh_kubernetes_container` is optional for
+# single-container pods.
+weaverssh_kubectl: "kubectl"
+weaverssh_kubernetes_namespace: "default"
+weaverssh_kubernetes_pod: ""
+weaverssh_kubernetes_container: ""
+
+# Update shell startup files only when explicitly requested. POSIX host installs
+# only; containers/pods are normally ephemeral and should be configured by image
+# or workload spec when persistence is required.
+weaverssh_update_shell_rc: false
+weaverssh_shell_rc_files:
+  - ".profile"
+
+# Smoke test after install.
+weaverssh_run_smoke_test: true
+
+# Override only when automatic fact mapping is wrong. For Docker/Kubernetes the
+# OS defaults to linux, but the architecture still comes from controller facts
+# unless explicitly overridden.
+weaverssh_target_os: ""
+weaverssh_target_arch: ""

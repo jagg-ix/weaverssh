@@ -1,0 +1,46 @@
+{
+  "scenarios": [
+    {
+      "name": "timeout_then_retry_success",
+      "hosts": [["linode-a", "10.0.0.11"]],
+      "users": ["root", "kb"],
+      "responses": [
+        {
+          "user": "root",
+          "host": "10.0.0.11",
+          "rc": 255,
+          "stdout": "",
+          "stderr": "ssh: connect to host 10.0.0.11 port 22: Connection timed out"
+        },
+        {
+          "user": "kb",
+          "host": "10.0.0.11",
+          "rc": 0,
+          "stdout": "AUTH_OK\nkb\n",
+          "stderr": ""
+        }
+      ],
+      "expected_selected": {
+        "10.0.0.11": "kb"
+      },
+      "expected_attempts": 2
+    },
+    {
+      "name": "validation_failure_missing_auth_marker",
+      "hosts": [["linode-b", "10.0.0.12"]],
+      "users": ["root"],
+      "responses": [
+        {
+          "user": "root",
+          "host": "10.0.0.12",
+          "rc": 0,
+          "stdout": "login_ok\nroot\n",
+          "stderr": ""
+        }
+      ],
+      "expected_selected": {},
+      "expected_attempts": 1
+    }
+  ]
+}
+

@@ -1,0 +1,35 @@
+name: release
+
+# Cut a release by pushing a semver tag:
+#   git tag -a v0.1.0 -m "v0.1.0" && git push origin v0.1.0
+# GoReleaser then cross-builds wv, archives it, produces checksums, SBOMs, and
+# deb/rpm/apk packages, and creates a (draft) GitHub Release for the tag.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: true
+      - name: Install syft (SBOM)
+        uses: anchore/sbom-action/download-syft@v0
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

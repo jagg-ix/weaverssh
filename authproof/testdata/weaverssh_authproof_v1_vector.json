@@ -1,0 +1,31 @@
+{
+  "canonical_payload": "{\"version\":\"weaverssh.auth.v1\",\"algorithm\":\"Ed25519\",\"issuer_peer_id\":\"origin-alise-workstation\",\"subject_peer_id\":\"agent-linode-a\",\"audience\":\"wv-agent\",\"session_id\":\"session-20260612-target-001-002\",\"capabilities\":[\"websocket.upgrade\",\"x11.relay\"],\"x11_cookie_sha256\":\"50fea9b75b5419b8f1969a654db59554c117575c73e4d4505f1b7fd50fc798c9\",\"chain_sha256\":\"fd2dc5350fe02a89a2432f04be0c9eb6f530b4861cdd52f7f1c664e396275ccd\",\"nonce\":\"nonce-001-002-fixed\",\"issued_at_unix\":1781234567,\"expires_at_unix\":1781234627}",
+  "canonical_payload_sha256": "1dad322c8ec1a3d952058dbc8de8d569519b590f75df32e4c55792eb63299725",
+  "public_key_base64url": "A6EHv_POEL4dcN0Y50vAmWfk1jCbpQ1fHdyGZBJVMbg",
+  "schema": "docs/specs/weaverssh_authproof.v1.schema.json",
+  "seed_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "signed_grant": {
+    "grant": {
+      "version": "weaverssh.auth.v1",
+      "algorithm": "Ed25519",
+      "issuer_peer_id": "origin-alise-workstation",
+      "subject_peer_id": "agent-linode-a",
+      "audience": "wv-agent",
+      "session_id": "session-20260612-target-001-002",
+      "capabilities": [
+        "websocket.upgrade",
+        "x11.relay"
+      ],
+      "x11_cookie_sha256": "50fea9b75b5419b8f1969a654db59554c117575c73e4d4505f1b7fd50fc798c9",
+      "chain_sha256": "fd2dc5350fe02a89a2432f04be0c9eb6f530b4861cdd52f7f1c664e396275ccd",
+      "nonce": "nonce-001-002-fixed",
+      "issued_at_unix": 1781234567,
+      "expires_at_unix": 1781234627
+    },
+    "signature": "3LLPdUVWU5hutrEDwgVYI13Q_Pm2IKP_tz4AK7hKroDmqzxE_KqUvSduYpaIgofeCCdRrF3lJj9e-sXlyCe0Cw"
+  },
+  "target_codes": [
+    "weaverssh_crypto_001_capability_contract",
+    "weaverssh_crypto_002_authproof_go_pkg"
+  ]
+}

@@ -1,0 +1,225 @@
+{
+  "api_version": "v1",
+  "provider_extension_id": "local.vscode-sshx11",
+  "compatibility_target": "vscode-sshx11@0.0.1",
+  "named_commands": [
+    "configure",
+    "startServices",
+    "stopServices",
+    "statusLocal",
+    "socksFallbackStart",
+    "vscodeProfileGen",
+    "verifyExtensionHosts",
+    "reverseSocksSmoke",
+    "webdavStart",
+    "ninepStart",
+    "ninepStatus",
+    "ninepStop",
+    "ninepPlan",
+    "openWorkflowsDoc"
+  ],
+  "method_contract": {
+    "getSettingsSnapshot": {
+      "transport": [
+        "extension-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "GET",
+        "path": "/v1/settingsSnapshot"
+      }
+    },
+    "runOpsCommand": {
+      "transport": [
+        "extension-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "POST",
+        "path": "/v1/runOpsCommand",
+        "body_schema": {
+          "subcommand": "string",
+          "args": [
+            "string"
+          ]
+        }
+      }
+    },
+    "runNamedCommand": {
+      "transport": [
+        "extension-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "POST",
+        "path": "/v1/runNamedCommand",
+        "body_schema": {
+          "name": "SSHX11NamedCommand",
+          "request": "object|null"
+        }
+      }
+    },
+    "runReverseSocksSmoke": {
+      "transport": [
+        "extension-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "POST",
+        "path": "/v1/runReverseSocksSmoke",
+        "body_schema": {
+          "host": "string|null",
+          "user": "string|null",
+          "identityFile": "string|null"
+        }
+      }
+    },
+    "showConfigure": {
+      "transport": [
+        "extension-api"
+      ],
+      "http": {
+        "status": "not_applicable"
+      }
+    },
+    "onDidRunCommand": {
+      "transport": [
+        "extension-event",
+        "local-http-stream"
+      ],
+      "http": {
+        "method": "GET",
+        "path": "/v1/events"
+      }
+    },
+    "listUiActions": {
+      "transport": [
+        "extension-api",
+        "command-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "GET",
+        "path": "/v1/uiActions"
+      }
+    },
+    "describeUiAction": {
+      "transport": [
+        "extension-api",
+        "command-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "GET",
+        "path": "/v1/uiActions/{name}",
+        "path_schema": {
+          "name": "SSHX11UiActionName"
+        }
+      }
+    },
+    "runUiAction": {
+      "transport": [
+        "extension-api",
+        "command-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "POST",
+        "path": "/v1/runUiAction",
+        "body_schema": {
+          "name": "SSHX11UiActionName",
+          "request": "object|null"
+        }
+      }
+    },
+    "listFeaturePlugins": {
+      "transport": [
+        "command-api",
+        "extension-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "GET",
+        "path": "/v1/featurePlugins",
+        "query_schema": {
+          "kind": "string|null",
+          "feature": "string|null",
+          "tag": "string|null",
+          "enabledOnly": "boolean|null",
+          "checks": "boolean|null"
+        }
+      }
+    },
+    "discoverFeaturePlugins": {
+      "transport": [
+        "command-api",
+        "extension-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "GET",
+        "path": "/v1/featurePlugins/discover",
+        "query_schema": {
+          "kind": "string|null",
+          "feature": "string|null",
+          "tag": "string|null",
+          "enabledOnly": "boolean|null"
+        }
+      }
+    },
+    "describeFeaturePlugin": {
+      "transport": [
+        "command-api",
+        "extension-api",
+        "local-http"
+      ],
+      "http": {
+        "method": "GET",
+        "path": "/v1/featurePlugins/{id}",
+        "path_schema": {
+          "id": "WeaversshFeaturePluginId"
+        }
+      }
+    }
+  },
+  "settings_snapshot_fields": [
+    "chainConnector",
+    "organizationConfigPath",
+    "organizationProvider",
+    "setupKind",
+    "sshClientAdapter",
+    "virtualizationLayer"
+  ],
+  "ui_driver": {
+    "driver_version": "0.0.1",
+    "source_module": "src/ui-api.ts",
+    "contract": "Every user-facing command-palette behavior is represented as a UI action and executed through runUiAction.",
+    "action_names": [
+      "configure",
+      "startServices",
+      "stopServices",
+      "statusLocal",
+      "socksFallbackStart",
+      "vscodeProfileGen",
+      "verifyExtensionHosts",
+      "reverseSocksSmoke",
+      "webdavStart",
+      "ninepStart",
+      "ninepStatus",
+      "ninepStop",
+      "ninepPlan",
+      "openWorkflowsDoc"
+    ],
+    "capabilities": [
+      "list-ui-actions",
+      "describe-ui-action",
+      "run-ui-action",
+      "plan-ops-command",
+      "prompted-reverse-socks-smoke",
+      "open-workspace-document",
+      "list-feature-plugins",
+      "discover-feature-plugins",
+      "describe-feature-plugin"
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weaverssh.dev/schema/luks-volume.v1.schema.json",
+  "title": "WeaverSSH LUKS Volume Configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "name", "device", "mapping_name", "mount_point"],
+  "properties": {
+    "version": {"const": "weaverssh.luks-volume.v1"},
+    "name": {"type": "string", "pattern": "^[a-z0-9._-]{1,128}$"},
+    "binary": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[^\\u0000\\r\\n\\t ]+$"},
+    "device": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "oneOf": [
+        {"pattern": "^/[^\\\\\\u0000\\r\\n]*$"},
+        {"pattern": "^UUID=[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"}
+      ]
+    },
+    "mapping_name": {"type": "string", "pattern": "^[a-z0-9._-]{1,128}$"},
+    "expected_uuid": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "expected_type": {"enum": ["luks", "luks1", "luks2"]},
+    "detached_header": {"type": "string", "pattern": "^/[^\\\\\\u0000\\r\\n]*$", "maxLength": 4096},
+    "mount_point": {"type": "string", "pattern": "^/[^\\\\\\u0000\\r\\n]*$", "maxLength": 4096},
+    "export_root": {"type": "string", "pattern": "^/[^\\\\\\u0000\\r\\n]*$", "maxLength": 4096},
+    "staging_root": {"type": "string", "pattern": "^/[^\\\\\\u0000\\r\\n]*$", "maxLength": 4096},
+    "key_file": {"type": "string", "pattern": "^/[^\\\\\\u0000\\r\\n]*$", "maxLength": 4096},
+    "read_only": {"type": "boolean", "default": false},
+    "allow_activate": {"type": "boolean", "default": false},
+    "allow_close": {"type": "boolean", "default": false}
+  },
+  "anyOf": [
+    {"required": ["export_root"]},
+    {"required": ["staging_root"]}
+  ],
+  "allOf": [
+    {
+      "if": {"properties": {"allow_activate": {"const": true}}},
+      "then": {"required": ["key_file"]}
+    }
+  ]
+}

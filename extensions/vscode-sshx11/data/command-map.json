@@ -1,0 +1,226 @@
+{
+  "schema_version": "1.0",
+  "tool": "tools/verification/sshx11_ops.sh",
+  "commands": [
+    {
+      "id": "sshx11.configure",
+      "title": "SSHX11: Configure",
+      "subcommand": "<popup>",
+      "args": []
+    },
+    {
+      "id": "sshx11.startServices",
+      "title": "SSHX11: Start Services",
+      "subcommand": "service-start",
+      "args": []
+    },
+    {
+      "id": "sshx11.stopServices",
+      "title": "SSHX11: Stop Services",
+      "subcommand": "service-stop",
+      "args": []
+    },
+    {
+      "id": "sshx11.statusLocal",
+      "title": "SSHX11: Status (Local)",
+      "subcommand": "status-local",
+      "args": []
+    },
+    {
+      "id": "sshx11.socksFallbackStart",
+      "title": "SSHX11: Start SOCKS Fallback",
+      "subcommand": "socks-fallback-start",
+      "args": []
+    },
+    {
+      "id": "sshx11.vscodeProfileGen",
+      "title": "SSHX11: Generate VS Code Profiles",
+      "subcommand": "vscode-profile-gen",
+      "args": [
+        "--profile",
+        "all",
+        "--output-dir",
+        ".vscode/sshx11"
+      ]
+    },
+    {
+      "id": "sshx11.verifyExtensionHosts",
+      "title": "SSHX11: Verify Extension Hosts",
+      "subcommand": "verify-extension-hosts",
+      "args": [
+        "--ssh-config",
+        "<setting:sshx11.defaultSshConfigPath>",
+        "--proxy-jump",
+        "<setting:sshx11.defaultSshProxyJump>",
+        "--proxy-command",
+        "<setting:sshx11.defaultSshProxyCommand>",
+        "--agent-mode",
+        "<setting:sshx11.agentMode>",
+        "--forward-agent",
+        "<setting:sshx11.forwardAgent>",
+        "--identity-agent",
+        "<setting:sshx11.identityAgent>",
+        "--remote-platform",
+        "<setting:sshx11.remotePlatform>",
+        "--remote-shell-bin",
+        "<setting:sshx11.remoteShellBin>",
+        "--remote-shell-login",
+        "<setting:sshx11.remoteShellLogin>",
+        "--remote-python-bin",
+        "<setting:sshx11.remotePythonBin>",
+        "--ssh-verbosity",
+        "<setting:sshx11.sshVerbosity>",
+        "--ssh-log-level",
+        "<setting:sshx11.sshLogLevel>",
+        "--ssh-log-file",
+        "<setting:sshx11.sshLogFile>"
+      ]
+    },
+    {
+      "id": "sshx11.reverseSocksSmoke",
+      "title": "SSHX11: Reverse SOCKS Smoke",
+      "subcommand": "reverse-socks-smoke",
+      "args": [
+        "--host",
+        "<prompt>",
+        "--user",
+        "<prompt>",
+        "--identity-file",
+        "<prompt>",
+        "--ssh-config",
+        "<setting:sshx11.defaultSshConfigPath>",
+        "--proxy-jump",
+        "<setting:sshx11.defaultSshProxyJump>",
+        "--proxy-command",
+        "<setting:sshx11.defaultSshProxyCommand>",
+        "--agent-mode",
+        "<setting:sshx11.agentMode>",
+        "--forward-agent",
+        "<setting:sshx11.forwardAgent>",
+        "--identity-agent",
+        "<setting:sshx11.identityAgent>",
+        "--remote-platform",
+        "<setting:sshx11.remotePlatform>",
+        "--remote-shell-bin",
+        "<setting:sshx11.remoteShellBin>",
+        "--remote-shell-login",
+        "<setting:sshx11.remoteShellLogin>",
+        "--remote-python-bin",
+        "<setting:sshx11.remotePythonBin>",
+        "--ssh-verbosity",
+        "<setting:sshx11.sshVerbosity>",
+        "--ssh-log-level",
+        "<setting:sshx11.sshLogLevel>",
+        "--ssh-log-file",
+        "<setting:sshx11.sshLogFile>"
+      ]
+    },
+    {
+      "id": "sshx11.webdavStart",
+      "title": "SSHX11: Start WebDAV",
+      "subcommand": "webdav-start",
+      "args": []
+    },
+    {
+      "id": "sshx11.ninepStart",
+      "title": "SSHX11: Start 9P Service",
+      "subcommand": "9p-start",
+      "args": []
+    },
+    {
+      "id": "sshx11.ninepStatus",
+      "title": "SSHX11: 9P Service Status",
+      "subcommand": "9p-status",
+      "args": []
+    },
+    {
+      "id": "sshx11.ninepStop",
+      "title": "SSHX11: Stop 9P Service",
+      "subcommand": "9p-stop",
+      "args": []
+    },
+    {
+      "id": "sshx11.ninepPlan",
+      "title": "SSHX11: Plan 9P Service",
+      "subcommand": "9p-plan",
+      "args": []
+    },
+    {
+      "id": "sshx11.api.getSettingsSnapshot",
+      "title": "SSHX11 API: Get Settings Snapshot",
+      "subcommand": "<api>",
+      "args": []
+    },
+    {
+      "id": "sshx11.api.runOpsCommand",
+      "title": "SSHX11 API: Run Ops Command",
+      "subcommand": "<api>",
+      "args": [
+        "<subcommand:string>",
+        "<args:string[]>"
+      ]
+    },
+    {
+      "id": "sshx11.api.runNamedCommand",
+      "title": "SSHX11 API: Run Named Command",
+      "subcommand": "<api>",
+      "args": [
+        "<name:SSHX11NamedCommand>",
+        "<request:SSHX11ReverseSocksSmokeRequest>"
+      ]
+    },
+    {
+      "id": "sshx11.api.showConfigure",
+      "title": "SSHX11 API: Show Configure",
+      "subcommand": "<api>",
+      "args": []
+    },
+    {
+      "id": "sshx11.api.listUiActions",
+      "title": "SSHX11 API: List UI Actions",
+      "subcommand": "<api>",
+      "args": []
+    },
+    {
+      "id": "sshx11.api.describeUiAction",
+      "title": "SSHX11 API: Describe UI Action",
+      "subcommand": "<api>",
+      "args": [
+        "<name:SSHX11UiActionName>"
+      ]
+    },
+    {
+      "id": "sshx11.api.runUiAction",
+      "title": "SSHX11 API: Run UI Action",
+      "subcommand": "<api>",
+      "args": [
+        "<name:SSHX11UiActionName>",
+        "<request:SSHX11UiActionRequest>"
+      ]
+    },
+    {
+      "id": "sshx11.api.listFeaturePlugins",
+      "title": "SSHX11 API: List Feature Plugins",
+      "subcommand": "<api>",
+      "args": [
+        "<filter:SSHX11FeaturePluginFilter>"
+      ]
+    },
+    {
+      "id": "sshx11.api.discoverFeaturePlugins",
+      "title": "SSHX11 API: Discover Feature Plugins",
+      "subcommand": "<api>",
+      "args": [
+        "<filter:SSHX11FeaturePluginFilter>"
+      ]
+    },
+    {
+      "id": "sshx11.api.describeFeaturePlugin",
+      "title": "SSHX11 API: Describe Feature Plugin",
+      "subcommand": "<api>",
+      "args": [
+        "<id:WeaversshFeaturePluginId>"
+      ]
+    }
+  ]
+}
