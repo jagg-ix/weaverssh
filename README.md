@@ -17,7 +17,7 @@ SSH, just the way it was always meant to be.
 That's it, ssh try to solve this by having `ssh -L` / `ssh -R`, it helps but doesnt help if i need to actually work
 instead of dealing with this delays while production needs to be fix and the client is on the phone asking for status, 
 
-## Second Challenge: Cybersecurity and storage, SCP intermediary host 
+## Second Challenge: SCP not always helps 
 You can SSH into a host — often through one or more bastions —  but to copy a file you need access and space available
 
 ## Third Challenge: SCP lacks a Commons VFS
