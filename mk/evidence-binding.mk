@@ -7,4 +7,4 @@ evidence-binding-race-test:
 	GOTOOLCHAIN=local go test -race -count=1 ./evidencebinding
 
 test-evidence-binding-static:
-	python3 -m pytest -q tests/test_evidence_binding.py
+	python3 tests/test_evidence_binding.py
