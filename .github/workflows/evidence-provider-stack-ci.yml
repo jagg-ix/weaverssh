@@ -40,15 +40,11 @@ jobs:
       - name: Build and test Fabric chaincode module
         working-directory: deploy/fabric/evidence-chaincode
         run: |
-          go mod tidy
-          go vet ./...
-          go test -count=1 ./...
-      - name: Export Fabric chaincode dependency lock
-        uses: actions/upload-artifact@v4
-        with:
-          name: fabric-chaincode-go-sum
-          path: deploy/fabric/evidence-chaincode/go.sum
-          if-no-files-found: error
+          go mod download
+          go mod verify
+          go vet -mod=readonly ./...
+          go test -mod=readonly -count=1 ./...
+          git diff --exit-code -- go.mod go.sum
 
   cross-build:
     runs-on: ubuntu-latest
