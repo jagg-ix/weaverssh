@@ -156,9 +156,10 @@ func (q *AgentRemoteAnchorQueue) Enqueue(head Head) error {
 	return nil
 }
 
-// Flush attempts every due item. force ignores NextAttemptUnix. Provider
-// failures are reported in the returned value while persistence and context
-// failures are returned as errors.
+// Flush attempts every due item. A forced flush attempts each pending head once
+// and ignores its deferred retry time; it never spins indefinitely on one
+// unavailable provider. Provider failures are reported in the returned value
+// while persistence and context failures are returned as errors.
 func (q *AgentRemoteAnchorQueue) Flush(ctx context.Context, force bool) (AgentRemoteFlushReport, error) {
 	if q == nil {
 		return AgentRemoteFlushReport{}, ErrInvalidAnchor
@@ -169,11 +170,14 @@ func (q *AgentRemoteAnchorQueue) Flush(ctx context.Context, force bool) (AgentRe
 	q.flushMu.Lock()
 	defer q.flushMu.Unlock()
 	report := AgentRemoteFlushReport{Version: AgentRemoteQueueVersion, Failures: map[string]string{}}
+	attemptedHeads := make(map[string]struct{})
 	for {
-		index, item, ok := q.nextDue(force, time.Now().UTC())
+		index, item, ok := q.nextDue(force, time.Now().UTC(), attemptedHeads)
 		if !ok {
 			break
 		}
+		key := remoteHeadKey(item.Head)
+		attemptedHeads[key] = struct{}{}
 		if err := ctx.Err(); err != nil {
 			return report, err
 		}
@@ -198,7 +202,7 @@ func (q *AgentRemoteAnchorQueue) Flush(ctx context.Context, force bool) (AgentRe
 			combined := errors.Join(anchorErr, verifyErr)
 			current.LastError = combined.Error()
 			current.NextAttemptUnix = time.Now().UTC().Add(q.backoff(current.Attempts)).Unix()
-			report.Failures[remoteHeadKey(current.Head)] = current.LastError
+			report.Failures[key] = current.LastError
 		}
 		persistErr := q.persistLocked()
 		q.mu.Unlock()
@@ -297,7 +301,7 @@ func (q *AgentRemoteAnchorQueue) signal() {
 	}
 }
 
-func (q *AgentRemoteAnchorQueue) nextDue(force bool, now time.Time) (int, AgentRemoteDelivery, bool) {
+func (q *AgentRemoteAnchorQueue) nextDue(force bool, now time.Time, attempted map[string]struct{}) (int, AgentRemoteDelivery, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if q.closed {
@@ -305,6 +309,9 @@ func (q *AgentRemoteAnchorQueue) nextDue(force bool, now time.Time) (int, AgentR
 	}
 	for index, item := range q.items {
 		if item.DeliveredAtUnix > 0 {
+			continue
+		}
+		if _, alreadyAttempted := attempted[remoteHeadKey(item.Head)]; alreadyAttempted {
 			continue
 		}
 		if force || item.NextAttemptUnix == 0 || item.NextAttemptUnix <= now.Unix() {
