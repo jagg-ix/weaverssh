@@ -43,10 +43,12 @@ jobs:
           go mod tidy
           go vet ./...
           go test -count=1 ./...
-          echo CHAINCODE_GO_SUM_BASE64_BEGIN
-          base64 -w0 go.sum
-          echo
-          echo CHAINCODE_GO_SUM_BASE64_END
+      - name: Export Fabric chaincode dependency lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabric-chaincode-go-sum
+          path: deploy/fabric/evidence-chaincode/go.sum
+          if-no-files-found: error
 
   cross-build:
     runs-on: ubuntu-latest
