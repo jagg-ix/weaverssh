@@ -2,6 +2,7 @@ package evidencebinding
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
