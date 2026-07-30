@@ -16,7 +16,8 @@ import (
 )
 
 // RunAgentEvidence starts a normal WeaverSSH agent with automatic signed event
-// journaling, embedded immudb anchoring, and an authenticated local control API.
+// journaling, embedded immudb anchoring, optional durable remote quorum
+// delivery, and an authenticated local control API.
 func RunAgentEvidence() {
 	config := AgentConfig{
 		Port: 0, ListenNetwork: "tcp", InterfaceMode: string(AgentInterfaceTCP),
@@ -24,6 +25,7 @@ func RunAgentEvidence() {
 		TrustedAuth: true, EnableSecurity: true, LogLevel: "info", Proof: defaultAgentProofConfig(),
 	}
 	embedded := AgentEmbeddedImmuDBConfigFromEnv(os.Getenv)
+	remote := AgentRemoteDeliveryConfigFromEnv(embedded.Path, os.Getenv)
 	var listenUnixPath, interfaceMode string
 	controlNetwork, controlAddress, controlTokenFile := defaultAgentEvidenceControl(embedded.Path)
 
@@ -46,6 +48,12 @@ func RunAgentEvidence() {
 	fs.StringVar(&embedded.Path, "embedded-immudb-path", embedded.Path, "persistent root for embedded immudb and signed journal")
 	fs.StringVar(&embedded.ProviderName, "embedded-immudb-provider", embedded.ProviderName, "provider identity written into receipts")
 	fs.StringVar(&embedded.StreamID, "evidence-stream", embedded.StreamID, "append-only evidence stream ID")
+	fs.StringVar(&remote.ProviderConfigPath, "remote-providers", remote.ProviderConfigPath, "remote N-of-M provider configuration JSON")
+	fs.StringVar(&remote.QueuePath, "remote-queue", remote.QueuePath, "durable remote delivery queue path")
+	fs.DurationVar(&remote.MinBackoff, "remote-retry-min", remote.MinBackoff, "minimum remote delivery retry backoff")
+	fs.DurationVar(&remote.MaxBackoff, "remote-retry-max", remote.MaxBackoff, "maximum remote delivery retry backoff")
+	fs.DurationVar(&remote.PollEvery, "remote-poll", remote.PollEvery, "remote delivery queue polling interval")
+	fs.DurationVar(&remote.HTTPTimeout, "remote-timeout", remote.HTTPTimeout, "per-attempt remote provider timeout")
 	fs.StringVar(&controlNetwork, "evidence-control-network", controlNetwork, "control network: unix or tcp")
 	fs.StringVar(&controlAddress, "evidence-control", controlAddress, "authenticated evidence control socket/address")
 	fs.StringVar(&controlTokenFile, "evidence-control-token-file", controlTokenFile, "HMAC control token file")
@@ -55,6 +63,9 @@ func RunAgentEvidence() {
 	}
 	if err := embedded.Validate(); err != nil {
 		log.Fatal(err)
+	}
+	if strings.TrimSpace(remote.ProviderConfigPath) != "" && strings.TrimSpace(remote.QueuePath) == "" {
+		remote.QueuePath = filepath.Join(strings.TrimSpace(embedded.Path), "remote-delivery.json")
 	}
 
 	switch strings.ToLower(config.LogLevel) {
@@ -128,6 +139,17 @@ func RunAgentEvidence() {
 		log.Fatalf("initialize evidence-enabled agent: %v", err)
 	}
 	defer agent.Close()
+	if strings.TrimSpace(remote.ProviderConfigPath) != "" {
+		queue, queueErr := OpenAgentRemoteDelivery(context.Background(), remote)
+		if queueErr != nil {
+			log.Fatalf("initialize remote evidence delivery: %v", queueErr)
+		}
+		if err := agent.EnableRemoteEvidenceDelivery(queue); err != nil {
+			_ = queue.Close()
+			log.Fatalf("enable remote evidence delivery: %v", err)
+		}
+		log.Printf("remote evidence delivery enabled providers=%s queue=%s", remote.ProviderConfigPath, remote.QueuePath)
+	}
 	control, err := StartAgentEvidenceControl(context.Background(), agent, AgentEvidenceControlConfig{
 		Network: controlNetwork, Address: controlAddress, TokenFile: controlTokenFile,
 	})
