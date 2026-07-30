@@ -1,0 +1,66 @@
+name: evidence provider stack ci
+
+on:
+  pull_request:
+    branches:
+      - agent/nonrepudiation-adversarial-tests
+    paths:
+      - 'evidencebinding/**'
+      - 'fabricbridge/**'
+      - 'cmd/wv-evidence-anchor/**'
+      - 'cmd/wv-fabric-anchor-bridge/**'
+      - 'deploy/evidence/**'
+      - 'deploy/fabric/evidence-chaincode/**'
+      - 'scripts/evidence/**'
+      - 'docs/architecture/evidence-provider-operations.md'
+      - 'docs/examples/evidence-binding/**'
+      - 'mk/evidence-binding.mk'
+      - '.github/workflows/evidence-provider-*.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Unit tests
+        run: go test -count=1 ./evidencebinding ./fabricbridge ./cmd/wv-evidence-anchor ./cmd/wv-fabric-anchor-bridge
+      - name: Race tests
+        run: go test -race -count=1 ./evidencebinding ./fabricbridge
+
+  cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: freebsd, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+      - name: Build provider commands
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -o /dev/null ./cmd/wv-evidence-anchor
+          go build -o /dev/null ./cmd/wv-fabric-anchor-bridge
