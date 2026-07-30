@@ -24,16 +24,17 @@ const (
 )
 
 type Config struct {
-	Token            string
-	PeerBinary       string
-	Orderer          string
-	OrdererCA        string
-	PeerAddresses    []string
-	PeerTLSRoots     []string
-	WaitForEvent     time.Duration
-	CommandTimeout   time.Duration
-	AdditionalEnv    []string
-	MaxRequestBytes  int64
+	Token           string
+	PeerBinary      string
+	Orderer         string
+	OrdererCA       string
+	PeerAddresses   []string
+	PeerTLSRoots    []string
+	QueryFunction   string
+	WaitForEvent    time.Duration
+	CommandTimeout  time.Duration
+	AdditionalEnv   []string
+	MaxRequestBytes int64
 }
 
 type CommandRunner interface {
@@ -46,8 +47,7 @@ func (ExecRunner) Run(ctx context.Context, environment []string, name string, ar
 	command := exec.CommandContext(ctx, name, args...)
 	command.Env = environment
 	var stdout, stderr bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = &stderr
+	command.Stdout, command.Stderr = &stdout, &stderr
 	err := command.Run()
 	return stdout.Bytes(), stderr.Bytes(), err
 }
@@ -58,121 +58,117 @@ type Server struct {
 }
 
 type anchorRequest struct {
-	Channel        string                          `json:"channel"`
-	Chaincode      string                          `json:"chaincode"`
-	Contract       string                          `json:"contract,omitempty"`
-	Function       string                          `json:"function"`
-	IdempotencyKey string                          `json:"idempotency_key"`
+	Channel        string                           `json:"channel"`
+	Chaincode      string                           `json:"chaincode"`
+	Contract       string                           `json:"contract,omitempty"`
+	Function       string                           `json:"function"`
+	IdempotencyKey string                           `json:"idempotency_key"`
 	Statement      evidencebinding.AnchorStatement `json:"statement"`
 }
 
 type anchorResponse struct {
-	TransactionID string                          `json:"transaction_id"`
-	BlockNumber   uint64                          `json:"block_number"`
-	Successful    bool                            `json:"successful"`
+	TransactionID string                           `json:"transaction_id"`
+	BlockNumber   uint64                           `json:"block_number"`
+	Successful    bool                             `json:"successful"`
 	Statement     evidencebinding.AnchorStatement `json:"statement"`
 }
 
 type chaincodeRecord struct {
-	IdempotencyKey string                          `json:"idempotency_key"`
+	IdempotencyKey string                           `json:"idempotency_key"`
 	Statement      evidencebinding.AnchorStatement `json:"statement"`
-	TransactionID  string                          `json:"transaction_id"`
+	TransactionID  string                           `json:"transaction_id"`
 }
 
 func (s Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc(HealthPath, func(writer http.ResponseWriter, request *http.Request) {
-		if request.Method != http.MethodGet {
-			writeError(writer, http.StatusMethodNotAllowed, errors.New("method not allowed"))
+	mux.HandleFunc(HealthPath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeError(w, http.StatusMethodNotAllowed, errors.New("method not allowed"))
 			return
 		}
-		writeJSON(writer, http.StatusOK, map[string]any{"ok": true})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 	})
 	mux.HandleFunc(SubmitPath, s.handleSubmit)
 	mux.HandleFunc(EvaluatePath, s.handleEvaluate)
 	return mux
 }
 
-func (s Server) handleSubmit(writer http.ResponseWriter, request *http.Request) {
-	body, ok := s.authorizedRequest(writer, request)
+func (s Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
+	body, ok := s.authorizedRequest(w, r)
 	if !ok {
 		return
 	}
-	ctx, cancel := context.WithTimeout(request.Context(), s.commandTimeout())
+	ctx, cancel := context.WithTimeout(r.Context(), s.commandTimeout())
 	defer cancel()
 	if err := s.invoke(ctx, body); err != nil {
-		writeError(writer, http.StatusBadGateway, err)
+		writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	record, err := s.query(ctx, body)
+	record, err := s.query(ctx, body, s.queryFunction())
 	if err != nil {
-		writeError(writer, http.StatusBadGateway, err)
+		writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	if record.Statement != body.Statement || record.IdempotencyKey != body.IdempotencyKey || strings.TrimSpace(record.TransactionID) == "" {
-		writeError(writer, http.StatusConflict, evidencebinding.ErrAnchorMismatch)
+	if err := validateRecord(body, record); err != nil {
+		writeError(w, http.StatusConflict, err)
 		return
 	}
 	height, err := s.channelHeight(ctx, body.Channel)
 	if err != nil {
-		writeError(writer, http.StatusBadGateway, err)
+		writeError(w, http.StatusBadGateway, err)
 		return
 	}
 	if height < 2 {
-		writeError(writer, http.StatusBadGateway, errors.New("Fabric channel height does not contain a committed application block"))
+		writeError(w, http.StatusBadGateway, errors.New("Fabric channel has no committed application block"))
 		return
 	}
-	writeJSON(writer, http.StatusOK, anchorResponse{
-		TransactionID: record.TransactionID,
-		BlockNumber: height - 1,
-		Successful: true,
-		Statement: record.Statement,
-	})
+	writeJSON(w, http.StatusOK, anchorResponse{TransactionID: record.TransactionID, BlockNumber: height - 1, Successful: true, Statement: record.Statement})
 }
 
-func (s Server) handleEvaluate(writer http.ResponseWriter, request *http.Request) {
-	body, ok := s.authorizedRequest(writer, request)
+func (s Server) handleEvaluate(w http.ResponseWriter, r *http.Request) {
+	body, ok := s.authorizedRequest(w, r)
 	if !ok {
 		return
 	}
-	ctx, cancel := context.WithTimeout(request.Context(), s.commandTimeout())
+	ctx, cancel := context.WithTimeout(r.Context(), s.commandTimeout())
 	defer cancel()
-	record, err := s.query(ctx, body)
+	record, err := s.query(ctx, body, body.Function)
 	if err != nil {
-		writeError(writer, http.StatusBadGateway, err)
+		writeError(w, http.StatusBadGateway, err)
 		return
 	}
-	if record.Statement != body.Statement || record.IdempotencyKey != body.IdempotencyKey || strings.TrimSpace(record.TransactionID) == "" {
-		writeError(writer, http.StatusConflict, evidencebinding.ErrAnchorMismatch)
+	if err := validateRecord(body, record); err != nil {
+		writeError(w, http.StatusConflict, err)
 		return
 	}
-	writeJSON(writer, http.StatusOK, anchorResponse{
-		TransactionID: record.TransactionID,
-		Successful: true,
-		Statement: record.Statement,
-	})
+	writeJSON(w, http.StatusOK, anchorResponse{TransactionID: record.TransactionID, Successful: true, Statement: record.Statement})
 }
 
-func (s Server) authorizedRequest(writer http.ResponseWriter, request *http.Request) (anchorRequest, bool) {
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, errors.New("method not allowed"))
+func validateRecord(request anchorRequest, record chaincodeRecord) error {
+	if record.Statement != request.Statement || record.IdempotencyKey != request.IdempotencyKey || strings.TrimSpace(record.TransactionID) == "" {
+		return evidencebinding.ErrAnchorMismatch
+	}
+	return nil
+}
+
+func (s Server) authorizedRequest(w http.ResponseWriter, r *http.Request) (anchorRequest, bool) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, errors.New("method not allowed"))
 		return anchorRequest{}, false
 	}
-	if token := strings.TrimSpace(s.Config.Token); token != "" {
-		if request.Header.Get("Authorization") != "Bearer "+token {
-			writeError(writer, http.StatusUnauthorized, errors.New("unauthorized"))
-			return anchorRequest{}, false
-		}
+	if token := strings.TrimSpace(s.Config.Token); token != "" && r.Header.Get("Authorization") != "Bearer "+token {
+		writeError(w, http.StatusUnauthorized, errors.New("unauthorized"))
+		return anchorRequest{}, false
 	}
 	limit := s.Config.MaxRequestBytes
 	if limit <= 0 {
 		limit = 1 << 20
 	}
-	decoder := json.NewDecoder(io.LimitReader(request.Body, limit))
+	decoder := json.NewDecoder(io.LimitReader(r.Body, limit))
 	decoder.DisallowUnknownFields()
 	var body anchorRequest
 	if err := decoder.Decode(&body); err != nil {
-		writeError(writer, http.StatusBadRequest, err)
+		writeError(w, http.StatusBadRequest, err)
 		return anchorRequest{}, false
 	}
 	var trailing any
@@ -180,15 +176,15 @@ func (s Server) authorizedRequest(writer http.ResponseWriter, request *http.Requ
 		if err == nil {
 			err = errors.New("trailing JSON value")
 		}
-		writeError(writer, http.StatusBadRequest, err)
+		writeError(w, http.StatusBadRequest, err)
 		return anchorRequest{}, false
 	}
 	if strings.TrimSpace(body.Channel) == "" || strings.TrimSpace(body.Chaincode) == "" || strings.TrimSpace(body.Function) == "" || strings.TrimSpace(body.IdempotencyKey) == "" {
-		writeError(writer, http.StatusBadRequest, errors.New("channel, chaincode, function, and idempotency_key are required"))
+		writeError(w, http.StatusBadRequest, errors.New("channel, chaincode, function, and idempotency_key are required"))
 		return anchorRequest{}, false
 	}
 	if err := body.Statement.Validate(); err != nil {
-		writeError(writer, http.StatusBadRequest, err)
+		writeError(w, http.StatusBadRequest, err)
 		return anchorRequest{}, false
 	}
 	return body, true
@@ -218,8 +214,8 @@ func (s Server) invoke(ctx context.Context, request anchorRequest) error {
 	return nil
 }
 
-func (s Server) query(ctx context.Context, request anchorRequest) (chaincodeRecord, error) {
-	constructor, err := constructorJSON(functionName(request.Contract, request.Function), request.IdempotencyKey)
+func (s Server) query(ctx context.Context, request anchorRequest, function string) (chaincodeRecord, error) {
+	constructor, err := constructorJSON(functionName(request.Contract, function), request.IdempotencyKey)
 	if err != nil {
 		return chaincodeRecord{}, err
 	}
@@ -241,27 +237,25 @@ func (s Server) channelHeight(ctx context.Context, channel string) (uint64, erro
 	if err != nil {
 		return 0, fmt.Errorf("peer channel getinfo: %w: %s", err, strings.TrimSpace(string(stderr)))
 	}
-	var info struct { Height json.Number `json:"height"` }
+	var info struct {
+		Height json.Number `json:"height"`
+	}
 	if err := decodeJSONObject(stdout, &info); err != nil {
 		return 0, err
 	}
-	height, err := strconv.ParseUint(info.Height.String(), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return height, nil
+	return strconv.ParseUint(info.Height.String(), 10, 64)
 }
 
 func (s Server) peerArguments() []string {
 	var args []string
-	for _, address := range s.Config.PeerAddresses {
-		if strings.TrimSpace(address) != "" {
-			args = append(args, "--peerAddresses", strings.TrimSpace(address))
+	for _, value := range s.Config.PeerAddresses {
+		if value = strings.TrimSpace(value); value != "" {
+			args = append(args, "--peerAddresses", value)
 		}
 	}
-	for _, root := range s.Config.PeerTLSRoots {
-		if strings.TrimSpace(root) != "" {
-			args = append(args, "--tlsRootCertFiles", strings.TrimSpace(root))
+	for _, value := range s.Config.PeerTLSRoots {
+		if value = strings.TrimSpace(value); value != "" {
+			args = append(args, "--tlsRootCertFiles", value)
 		}
 	}
 	return args
@@ -269,55 +263,75 @@ func (s Server) peerArguments() []string {
 
 func (s Server) environment() []string { return append(os.Environ(), s.Config.AdditionalEnv...) }
 func (s Server) runner() CommandRunner {
-	if s.Runner != nil { return s.Runner }
+	if s.Runner != nil {
+		return s.Runner
+	}
 	return ExecRunner{}
 }
 func (s Server) peerBinary() string {
-	if value := strings.TrimSpace(s.Config.PeerBinary); value != "" { return value }
+	if value := strings.TrimSpace(s.Config.PeerBinary); value != "" {
+		return value
+	}
 	return "peer"
 }
+func (s Server) queryFunction() string {
+	if value := strings.TrimSpace(s.Config.QueryFunction); value != "" {
+		return value
+	}
+	return "ReadEvidenceAnchor"
+}
 func (s Server) waitForEvent() time.Duration {
-	if s.Config.WaitForEvent > 0 { return s.Config.WaitForEvent }
+	if s.Config.WaitForEvent > 0 {
+		return s.Config.WaitForEvent
+	}
 	return 30 * time.Second
 }
 func (s Server) commandTimeout() time.Duration {
-	if s.Config.CommandTimeout > 0 { return s.Config.CommandTimeout }
+	if s.Config.CommandTimeout > 0 {
+		return s.Config.CommandTimeout
+	}
 	return 60 * time.Second
 }
 
 func functionName(contract, function string) string {
-	contract = strings.TrimSpace(contract)
-	function = strings.TrimSpace(function)
-	if contract == "" || strings.Contains(function, ":") { return function }
+	contract, function = strings.TrimSpace(contract), strings.TrimSpace(function)
+	if contract == "" || strings.Contains(function, ":") {
+		return function
+	}
 	return contract + ":" + function
 }
 
 func constructorJSON(function string, arguments ...string) (string, error) {
-	returnString, err := json.Marshal(struct {
+	encoded, err := json.Marshal(struct {
 		Function string   `json:"Function"`
 		Args     []string `json:"Args"`
 	}{Function: function, Args: arguments})
-	return string(returnString), err
+	return string(encoded), err
 }
 
 func decodeJSONObject(data []byte, destination any) error {
 	for index, value := range data {
-		if value != '{' { continue }
+		if value != '{' {
+			continue
+		}
 		decoder := json.NewDecoder(bytes.NewReader(data[index:]))
 		decoder.UseNumber()
-		if err := decoder.Decode(destination); err != nil { continue }
+		if err := decoder.Decode(destination); err != nil {
+			continue
+		}
 		var trailing any
-		if err := decoder.Decode(&trailing); errors.Is(err, io.EOF) { return nil }
+		if err := decoder.Decode(&trailing); errors.Is(err, io.EOF) {
+			return nil
+		}
 	}
 	return errors.New("no complete JSON object found")
 }
 
-func writeJSON(writer http.ResponseWriter, status int, value any) {
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(status)
-	_ = json.NewEncoder(writer).Encode(value)
+func writeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
 }
-
-func writeError(writer http.ResponseWriter, status int, err error) {
-	writeJSON(writer, status, map[string]any{"ok": false, "error": err.Error()})
+func writeError(w http.ResponseWriter, status int, err error) {
+	writeJSON(w, status, map[string]any{"ok": false, "error": err.Error()})
 }
