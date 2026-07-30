@@ -3,6 +3,7 @@ module weaverssh
 go 1.23.2
 
 require (
+	github.com/codenotary/immudb v1.10.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/panjf2000/gnet/v2 v2.9.7
 	github.com/things-go/go-socks5 v0.1.0
