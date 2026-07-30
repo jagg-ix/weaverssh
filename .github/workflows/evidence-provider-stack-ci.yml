@@ -37,6 +37,12 @@ jobs:
         run: go test -count=1 ./evidencebinding ./fabricbridge ./cmd/wv-evidence-anchor ./cmd/wv-fabric-anchor-bridge
       - name: Race tests
         run: go test -race -count=1 ./evidencebinding ./fabricbridge
+      - name: Build and test Fabric chaincode module
+        working-directory: deploy/fabric/evidence-chaincode
+        run: |
+          go mod download
+          go vet ./...
+          go test -count=1 ./...
 
   cross-build:
     runs-on: ubuntu-latest
