@@ -32,6 +32,7 @@ func TestEmbeddedAgentEvidenceArtifactsRemainConnected(t *testing.T) {
 			"```mermaid",
 			"not an independent witness",
 			"Business Source License 1.1",
+			"documentation site states that its documentation is released under Apache 2.0",
 			"AgentRuntimeWithEmbeddedImmuDB",
 		},
 		"../docs/examples/evidence-binding/providers.embedded.json": {
