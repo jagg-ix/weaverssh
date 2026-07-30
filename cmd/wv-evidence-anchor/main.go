@@ -48,14 +48,14 @@ func runAnchor(args []string) int {
 		fmt.Fprintln(os.Stderr, "usage: wv-evidence-anchor anchor --config providers.json --head head.json [--out receipts.json]")
 		return 2
 	}
-	config, policy, head, err := loadInputs(*configPath, *headPath, *timeout)
-	_ = config
+	inputs, err := loadInputs(*configPath, *headPath, *timeout)
 	if err != nil {
 		return fail(err)
 	}
+	defer inputs.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	receipts, err := policy.Anchor(ctx, head)
+	receipts, err := inputs.Policy.Anchor(ctx, inputs.Head)
 	if err != nil {
 		return fail(err)
 	}
@@ -72,17 +72,18 @@ func runVerify(args []string) int {
 		fmt.Fprintln(os.Stderr, "usage: wv-evidence-anchor verify --config providers.json --head head.json --receipts receipts.json")
 		return 2
 	}
-	_, policy, head, err := loadInputs(*configPath, *headPath, *timeout)
+	inputs, err := loadInputs(*configPath, *headPath, *timeout)
 	if err != nil {
 		return fail(err)
 	}
+	defer inputs.Close()
 	var receipts []evidencebinding.AnchorReceipt
 	if err := readStrictFile(*receiptsPath, &receipts); err != nil {
 		return fail(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	report, err := policy.Verify(ctx, head, receipts)
+	report, err := inputs.Policy.Verify(ctx, inputs.Head, receipts)
 	if err != nil {
 		_ = json.NewEncoder(os.Stdout).Encode(report)
 		return fail(err)
@@ -90,24 +91,36 @@ func runVerify(args []string) int {
 	return writeJSON("", report)
 }
 
-func loadInputs(configPath, headPath string, timeout time.Duration) (evidencebinding.AnchorProviderConfigFile, evidencebinding.AnchorThresholdPolicy, evidencebinding.Head, error) {
+type loadedInputs struct {
+	Config    evidencebinding.AnchorProviderConfigFile
+	Providers []evidencebinding.AnchorProvider
+	Policy    evidencebinding.AnchorThresholdPolicy
+	Head      evidencebinding.Head
+}
+
+func (i loadedInputs) Close() error { return evidencebinding.CloseAnchorProviders(i.Providers) }
+
+func loadInputs(configPath, headPath string, timeout time.Duration) (loadedInputs, error) {
 	config, err := evidencebinding.LoadAnchorProviderConfig(configPath)
 	if err != nil {
-		return evidencebinding.AnchorProviderConfigFile{}, evidencebinding.AnchorThresholdPolicy{}, evidencebinding.Head{}, err
+		return loadedInputs{}, err
 	}
 	client := &http.Client{Timeout: timeout}
-	_, policy, err := config.Build(client, os.Getenv)
+	providers, policy, err := config.Build(client, os.Getenv)
 	if err != nil {
-		return evidencebinding.AnchorProviderConfigFile{}, evidencebinding.AnchorThresholdPolicy{}, evidencebinding.Head{}, err
+		return loadedInputs{}, err
+	}
+	fail := func(err error) (loadedInputs, error) {
+		return loadedInputs{}, errors.Join(err, evidencebinding.CloseAnchorProviders(providers))
 	}
 	var head evidencebinding.Head
 	if err := readStrictFile(headPath, &head); err != nil {
-		return evidencebinding.AnchorProviderConfigFile{}, evidencebinding.AnchorThresholdPolicy{}, evidencebinding.Head{}, err
+		return fail(err)
 	}
 	if _, err := evidencebinding.NewAnchorStatement(head); err != nil {
-		return evidencebinding.AnchorProviderConfigFile{}, evidencebinding.AnchorThresholdPolicy{}, evidencebinding.Head{}, err
+		return fail(err)
 	}
-	return config, policy, head, nil
+	return loadedInputs{Config: config, Providers: providers, Policy: policy, Head: head}, nil
 }
 
 func readStrictFile(path string, destination any) error {
