@@ -1,0 +1,29 @@
+services:
+  immudb:
+    image: codenotary/immudb:1.9.5
+    environment:
+      IMMUDB_ADDRESS: 0.0.0.0
+    ports:
+      - "3322:3322"
+      - "9497:9497"
+    volumes:
+      - immudb-data:/var/lib/immudb
+
+  immugw:
+    image: codenotary/immugw:1.3.0
+    depends_on:
+      - immudb
+    environment:
+      IMMUGW_ADDRESS: 0.0.0.0
+      IMMUGW_PORT: 3323
+      IMMUGW_IMMUDB_ADDRESS: immudb
+      IMMUGW_IMMUDB_PORT: 3322
+      IMMUGW_AUDIT: "true"
+      IMMUGW_AUDIT_INTERVAL: 30s
+      IMMUGW_AUDIT_USERNAME: immudb
+      IMMUGW_AUDIT_PASSWORD: immudb
+    ports:
+      - "3323:3323"
+
+volumes:
+  immudb-data:
