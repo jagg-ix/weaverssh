@@ -1,0 +1,51 @@
+name: evidence providers live
+
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: Provider integration to run
+        required: true
+        default: immudb
+        type: choice
+        options:
+          - immudb
+          - fabric
+          - all
+
+permissions:
+  contents: read
+
+jobs:
+  immudb:
+    if: ${{ inputs.provider == 'immudb' || inputs.provider == 'all' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+      - name: Run live immudb anchor test
+        run: make evidence-binding-immudb-live-test
+
+  fabric:
+    if: ${{ inputs.provider == 'fabric' || inputs.provider == 'all' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+      - name: Run live Fabric anchor test
+        run: make evidence-binding-fabric-live-test
+      - name: Upload provider logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fabric-evidence-logs
+          path: .cache/fabric-evidence/*.log
+          if-no-files-found: ignore

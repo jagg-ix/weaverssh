@@ -30,6 +30,9 @@ const (
 	ActionDrain = "drain"
 	ActionStop = "stop"
 	ActionChronoProvider = "chrono-provider"
+	ActionEvidenceStatus = "evidence-status"
+	ActionEvidenceVerify = "evidence-verify"
+	ActionEvidenceExport = "evidence-export"
 	maxMessageBytes = 1 << 20
 	defaultMaxSkew = 30 * time.Second
 )
@@ -102,7 +105,7 @@ func (s *Server) serveConn(ctx context.Context, conn net.Conn) {
 
 func (s *Server) verify(request Request, now time.Time) error {
 	if request.Protocol != ProtocolVersion || request.Nonce == "" || request.Signature == "" { return ErrInvalid }
-	switch request.Action { case ActionStatus, ActionReload, ActionDrain, ActionStop, ActionChronoProvider: default: return ErrInvalid }
+	switch request.Action { case ActionStatus, ActionReload, ActionDrain, ActionStop, ActionChronoProvider, ActionEvidenceStatus, ActionEvidenceVerify, ActionEvidenceExport: default: return ErrInvalid }
 	maxSkew := s.MaxSkew; if maxSkew <= 0 { maxSkew = defaultMaxSkew }
 	when := time.Unix(request.Timestamp, 0); if when.Before(now.Add(-maxSkew)) || when.After(now.Add(maxSkew)) { return ErrUnauthorized }
 	if !verifySignature(s.Token, requestSigningValue(request), request.Signature) { return ErrUnauthorized }
