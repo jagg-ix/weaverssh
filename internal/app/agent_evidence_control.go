@@ -103,6 +103,12 @@ func StartAgentEvidenceControl(parent context.Context, runtime *AgentRuntimeWith
 				exported.Records = exported.Records[len(exported.Records)-limit:]
 			}
 			return exported, nil
+		case socketcontrol.ActionEvidenceRemoteStatus:
+			return runtime.RemoteEvidenceStatus(), nil
+		case socketcontrol.ActionEvidenceRemoteFlush:
+			return runtime.FlushRemoteEvidence(requestCtx)
+		case socketcontrol.ActionEvidenceSnapshot:
+			return runtime.CreateEvidenceSnapshot()
 		default:
 			return nil, socketcontrol.ErrInvalid
 		}
