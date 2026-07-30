@@ -22,40 +22,31 @@ on:
       - '.github/workflows/evidence-provider-*.yml'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-go@v5
         with:
           go-version: '1.23.2'
           cache: true
-      - name: Generate root module lock
-        run: go mod tidy
-      - name: Commit verified root module lock
+      - name: Verify root module lock
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add go.mod go.sum
-          if git diff --cached --quiet; then
-            echo "Root module lock is already current"
-          else
-            git commit -m "Lock embedded immudb dependencies"
-            git push origin HEAD:${{ github.event.pull_request.head.ref }}
-          fi
+          go mod download
+          go mod verify
       - name: Build
-        run: go build ./...
+        run: go build -mod=readonly ./...
       - name: Vet
-        run: go vet ./...
+        run: go vet -mod=readonly ./...
       - name: Unit tests
-        run: go test -count=1 ./evidencebinding ./fabricbridge ./internal/app ./cmd/wv-evidence-anchor ./cmd/wv-fabric-anchor-bridge
+        run: go test -mod=readonly -count=1 ./evidencebinding ./fabricbridge ./internal/app ./cmd/wv-evidence-anchor ./cmd/wv-fabric-anchor-bridge
       - name: Race tests
-        run: go test -race -count=1 ./evidencebinding ./fabricbridge ./internal/app
+        run: go test -mod=readonly -race -count=1 ./evidencebinding ./fabricbridge ./internal/app
+      - name: Ensure root module lock is unchanged
+        run: git diff --exit-code -- go.mod go.sum
       - name: Build and test Fabric chaincode module
         working-directory: deploy/fabric/evidence-chaincode
         run: |
@@ -89,5 +80,5 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -o /dev/null ./cmd/wv-evidence-anchor
-          go build -o /dev/null ./cmd/wv-fabric-anchor-bridge
+          go build -mod=readonly -o /dev/null ./cmd/wv-evidence-anchor
+          go build -mod=readonly -o /dev/null ./cmd/wv-fabric-anchor-bridge
