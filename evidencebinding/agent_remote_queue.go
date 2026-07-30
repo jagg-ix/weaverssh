@@ -1,12 +1,10 @@
 package evidencebinding
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,6 +19,7 @@ type AgentRemoteDelivery struct {
 	Version         string          `json:"version"`
 	Head            Head            `json:"head"`
 	Receipts        []AnchorReceipt `json:"receipts,omitempty"`
+	EnqueuedAtUnix  int64           `json:"enqueued_at_unix"`
 	Attempts        int             `json:"attempts"`
 	LastAttemptUnix int64           `json:"last_attempt_unix,omitempty"`
 	NextAttemptUnix int64           `json:"next_attempt_unix,omitempty"`
@@ -41,9 +40,9 @@ type AgentRemoteQueueStatus struct {
 }
 
 type AgentRemoteQueueExport struct {
-	Version string                `json:"version"`
+	Version string                 `json:"version"`
 	Status  AgentRemoteQueueStatus `json:"status"`
-	Items   []AgentRemoteDelivery `json:"items"`
+	Items   []AgentRemoteDelivery  `json:"items"`
 }
 
 type AgentRemoteFlushReport struct {
@@ -144,7 +143,11 @@ func (q *AgentRemoteAnchorQueue) Enqueue(head Head) error {
 			return nil
 		}
 	}
-	q.items = append(q.items, AgentRemoteDelivery{Version: AgentRemoteQueueVersion, Head: head, NextAttemptUnix: time.Now().UTC().Unix()})
+	now := time.Now().UTC().Unix()
+	q.items = append(q.items, AgentRemoteDelivery{
+		Version: AgentRemoteQueueVersion, Head: head,
+		EnqueuedAtUnix: now, NextAttemptUnix: now,
+	})
 	if err := q.persistLocked(); err != nil {
 		q.items = q.items[:len(q.items)-1]
 		return err
@@ -166,7 +169,6 @@ func (q *AgentRemoteAnchorQueue) Flush(ctx context.Context, force bool) (AgentRe
 	q.flushMu.Lock()
 	defer q.flushMu.Unlock()
 	report := AgentRemoteFlushReport{Version: AgentRemoteQueueVersion, Failures: map[string]string{}}
-
 	for {
 		index, item, ok := q.nextDue(force, time.Now().UTC())
 		if !ok {
@@ -227,11 +229,8 @@ func (q *AgentRemoteAnchorQueue) Status() AgentRemoteQueueStatus {
 			continue
 		}
 		status.Pending++
-		if status.OldestPendingUnix == 0 || item.Head.Sequence < uint64(status.OldestPendingUnix) {
-			status.OldestPendingUnix = item.LastAttemptUnix
-			if status.OldestPendingUnix == 0 {
-				status.OldestPendingUnix = item.NextAttemptUnix
-			}
+		if item.EnqueuedAtUnix > 0 && (status.OldestPendingUnix == 0 || item.EnqueuedAtUnix < status.OldestPendingUnix) {
+			status.OldestPendingUnix = item.EnqueuedAtUnix
 		}
 		if item.NextAttemptUnix > 0 && (status.NextAttemptUnix == 0 || item.NextAttemptUnix < status.NextAttemptUnix) {
 			status.NextAttemptUnix = item.NextAttemptUnix
@@ -338,7 +337,7 @@ func (q *AgentRemoteAnchorQueue) load() error {
 		return err
 	}
 	var state agentRemoteQueueState
-	if err := decodeStrictJSON(data, &state); err != nil {
+	if err := decodeAnchorJSONStrict(data, &state); err != nil {
 		return err
 	}
 	if state.Version != AgentRemoteQueueVersion {
@@ -346,7 +345,7 @@ func (q *AgentRemoteAnchorQueue) load() error {
 	}
 	seen := map[string]struct{}{}
 	for index, item := range state.Items {
-		if item.Version != AgentRemoteQueueVersion {
+		if item.Version != AgentRemoteQueueVersion || item.EnqueuedAtUnix <= 0 {
 			return fmt.Errorf("%w: remote queue item %d", ErrInvalidAnchor, index)
 		}
 		if _, err := NewAnchorStatement(item.Head); err != nil {
@@ -357,10 +356,13 @@ func (q *AgentRemoteAnchorQueue) load() error {
 			return fmt.Errorf("%w: duplicate remote head %s", ErrInvalidAnchor, key)
 		}
 		seen[key] = struct{}{}
-		if item.DeliveredAtUnix > 0 {
-			if _, err := q.policy.Verify(context.Background(), item.Head, item.Receipts); err != nil {
-				return fmt.Errorf("verify delivered remote head %s: %w", key, err)
+		for _, receipt := range item.Receipts {
+			if err := receipt.ValidateFor(receipt.Provider, item.Head); err != nil {
+				return fmt.Errorf("validate retained remote receipt %s: %w", key, err)
 			}
+		}
+		if item.DeliveredAtUnix > 0 && len(item.Receipts) == 0 {
+			return fmt.Errorf("%w: delivered remote head without receipts", ErrInvalidAnchor)
 		}
 	}
 	q.items = state.Items
@@ -441,17 +443,4 @@ func cloneRemoteDelivery(item AgentRemoteDelivery) AgentRemoteDelivery {
 	var cloned AgentRemoteDelivery
 	_ = json.Unmarshal(payload, &cloned)
 	return cloned
-}
-
-func decodeStrictJSON(data []byte, destination any) error {
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(destination); err != nil {
-		return err
-	}
-	var trailing any
-	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
-		return ErrInvalidAnchor
-	}
-	return nil
 }
