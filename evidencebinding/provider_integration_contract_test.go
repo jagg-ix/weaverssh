@@ -14,7 +14,7 @@ func TestProviderIntegrationArtifactsRemainConnected(t *testing.T) {
 		"../cmd/wv-evidence-anchor/main.go": {"anchor", "verify", "LoadAnchorProviderConfig"},
 		"../cmd/wv-fabric-anchor-bridge/main.go": {"wv-fabric-anchor-bridge", "query-function"},
 		"../deploy/fabric/evidence-chaincode/contract.go": {"AnchorEvidence", "ReadEvidenceAnchor", "GetTxID", "idempotency key already binds a different statement"},
-		"../scripts/evidence/immudb-live-test.sh": {"item/safe", "TestLiveImmuDBAnchor"},
+		"../scripts/evidence/immudb-live-test.sh": {"immurestproxy/login", "TestLiveImmuDBAnchor"},
 		"../scripts/evidence/fabric-live-test.sh": {"install-fabric.sh", "deployCC", "--wait-for-event", "TestLiveFabricAnchor"},
 		"../.github/workflows/evidence-providers-live.yml": {"workflow_dispatch", "evidence-binding-immudb-live-test", "evidence-binding-fabric-live-test"},
 	}
