@@ -141,4 +141,4 @@ For stronger denial resistance, combine the embedded provider with independently
 
 ## Dependency and licensing
 
-The implementation imports `github.com/codenotary/immudb/embedded/store` and pins the dependency in the repository module lock. immudb's upstream repository is distributed under the Business Source License 1.1; deployments and redistribution must be reviewed against the applicable upstream license terms. This does not change WeaverSSH's own Apache 2.0 license for original WeaverSSH code.
+The implementation imports `github.com/codenotary/immudb/embedded/store` and pins the dependency in the repository module lock. The immudb documentation site states that its documentation is released under Apache 2.0, while the current immudb source repository license declares Business Source License 1.1 terms for the licensed work. Deployments, embedding, and redistribution must therefore be reviewed against the license shipped with the exact immudb source version selected by WeaverSSH. This does not change WeaverSSH's Apache 2.0 license for original WeaverSSH code.
