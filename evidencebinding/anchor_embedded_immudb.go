@@ -82,6 +82,10 @@ func (p *EmbeddedImmuDBAnchor) Path() string {
 }
 
 func (p *EmbeddedImmuDBAnchor) Anchor(ctx context.Context, head Head) (AnchorReceipt, error) {
+	if p == nil {
+		return AnchorReceipt{}, fmt.Errorf("%w: embedded immudb provider is nil", ErrInvalidAnchor)
+	}
+	ctx = embeddedContext(ctx)
 	statement, err := NewAnchorStatement(head)
 	if err != nil {
 		return AnchorReceipt{}, err
@@ -96,11 +100,11 @@ func (p *EmbeddedImmuDBAnchor) Anchor(ctx context.Context, head Head) (AnchorRec
 
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	if p == nil || p.closed || p.store == nil {
+	if p.closed || p.store == nil {
 		return AnchorReceipt{}, fmt.Errorf("%w: embedded immudb store is closed", ErrInvalidAnchor)
 	}
 	key := embeddedImmuDBAnchorKey(statement)
-	if valueRef, getErr := p.store.Get(key); getErr == nil {
+	if valueRef, getErr := p.store.Get(ctx, key); getErr == nil {
 		return embeddedImmuDBReceipt(p.Name(), statement, canonical, valueRef)
 	} else if !errors.Is(getErr, store.ErrKeyNotFound) {
 		return AnchorReceipt{}, getErr
@@ -117,7 +121,7 @@ func (p *EmbeddedImmuDBAnchor) Anchor(ctx context.Context, head Head) (AnchorRec
 	if _, err := tx.Commit(ctx); err != nil {
 		return AnchorReceipt{}, err
 	}
-	valueRef, err := p.store.Get(key)
+	valueRef, err := p.store.Get(ctx, key)
 	if err != nil {
 		return AnchorReceipt{}, err
 	}
@@ -125,6 +129,10 @@ func (p *EmbeddedImmuDBAnchor) Anchor(ctx context.Context, head Head) (AnchorRec
 }
 
 func (p *EmbeddedImmuDBAnchor) Verify(ctx context.Context, head Head, receipt AnchorReceipt) error {
+	if p == nil {
+		return fmt.Errorf("%w: embedded immudb provider is nil", ErrInvalidAnchor)
+	}
+	ctx = embeddedContext(ctx)
 	if err := receipt.ValidateFor(p.Name(), head); err != nil {
 		return err
 	}
@@ -145,10 +153,10 @@ func (p *EmbeddedImmuDBAnchor) Verify(ctx context.Context, head Head, receipt An
 
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	if p == nil || p.closed || p.store == nil {
+	if p.closed || p.store == nil {
 		return fmt.Errorf("%w: embedded immudb store is closed", ErrInvalidAnchor)
 	}
-	valueRef, err := p.store.Get(embeddedImmuDBAnchorKey(receipt.Statement))
+	valueRef, err := p.store.Get(ctx, embeddedImmuDBAnchorKey(receipt.Statement))
 	if err != nil {
 		return err
 	}
@@ -237,6 +245,13 @@ func parseEmbeddedImmuDBExternalID(value string) (uint64, uint64, error) {
 		return 0, 0, ErrInvalidAnchor
 	}
 	return txID, historyCount, nil
+}
+
+func embeddedContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }
 
 func contextErr(ctx context.Context) error {
