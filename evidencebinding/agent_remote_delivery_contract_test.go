@@ -9,8 +9,8 @@ import (
 func TestAgentRemoteDeliveryArtifactsRemainConnected(t *testing.T) {
 	files := map[string][]string{
 		"agent_remote_queue.go": {
-			"AgentRemoteAnchorQueue", "AgentRemoteQueueVersion", "MinBackoff",
-			"mergeAnchorReceipts", "remote-delivery", "CloseAnchorProviders",
+			"AgentRemoteAnchorQueue", "AgentRemoteQueueVersion", "AgentRemoteDelivery",
+			"MinBackoff", "mergeAnchorReceipts", "persistState", "CloseAnchorProviders",
 		},
 		"agent_snapshot.go": {
 			"AgentJournalSnapshot", "VerifyAgentJournalSnapshot", "agentSnapshotDomain",
@@ -27,7 +27,7 @@ func TestAgentRemoteDeliveryArtifactsRemainConnected(t *testing.T) {
 			"remote-status", "remote-flush", "snapshot-verify", "writePrivateJSON",
 		},
 		"../docs/architecture/agent-evidence-remote-delivery.md": {
-			"```mermaid", "durable", "not an independent witness", "offline verification",
+			"```mermaid", "Durable delivery flow", "not an independent witness", "Offline verification",
 		},
 	}
 	for path, required := range files {
