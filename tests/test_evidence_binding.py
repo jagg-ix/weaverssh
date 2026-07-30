@@ -70,6 +70,8 @@ def test_external_anchor_provider_contracts() -> None:
     immudb = read("evidencebinding/anchor_immudb.go")
     fabric = read("evidencebinding/anchor_fabric.go")
     tests = read("evidencebinding/anchor_test.go")
+    threshold = read("evidencebinding/anchor_threshold.go")
+    threshold_tests = read("evidencebinding/anchor_threshold_test.go")
     for symbol in ("AnchorStatement", "AnchorReceipt", "AnchorProvider", "ErrAnchorMismatch", "ErrAnchorNotCommitted"):
         assert symbol in core
     assert "/v1/immurestproxy/item/safe" in immudb
@@ -88,6 +90,14 @@ def test_external_anchor_provider_contracts() -> None:
         "TestAnchorReceiptCannotBeReplayedAcrossProviderOrHead",
     ):
         assert f"func {test_name}" in tests
+    for symbol in ("AnchorThresholdPolicy", "AnchorThresholdReport", "ErrAnchorThreshold", "duplicate provider receipt"):
+        assert symbol in threshold
+    for test_name in (
+        "TestAnchorThresholdAcceptsTwoIndependentProviders",
+        "TestAnchorThresholdRejectsDuplicatesUnknownsAndInsufficientQuorum",
+        "TestAnchorThresholdConfigurationRejectsImpossibleOrDuplicatePolicy",
+    ):
+        assert f"func {test_name}" in threshold_tests
 
 
 def test_mermaid_algorithms_and_security_boundaries_are_documented() -> None:
@@ -100,6 +110,7 @@ def test_mermaid_algorithms_and_security_boundaries_are_documented() -> None:
         "Permissioned ledger", "RSA-PSS/SHA-256", "ECDSA P-256/SHA-256",
         "ECDSA P-384/SHA-384", "verified safe set/get", "successful commit status",
         "rewritten final entry requires an independently retained old head",
+        "AnchorThresholdPolicy", "never increase quorum",
     ):
         assert phrase in providers
     lowered = core_documentation.lower()
@@ -130,7 +141,8 @@ def test_private_research_terms_are_absent() -> None:
         "evidencebinding/binding_options_test.go", "evidencebinding/signature_suite.go",
         "evidencebinding/signature_suite_test.go", "evidencebinding/anchor.go",
         "evidencebinding/anchor_immudb.go", "evidencebinding/anchor_fabric.go",
-        "evidencebinding/anchor_test.go", "evidencebinding/readme_contract_test.go",
+        "evidencebinding/anchor_test.go", "evidencebinding/anchor_threshold.go",
+        "evidencebinding/anchor_threshold_test.go", "evidencebinding/readme_contract_test.go",
         "evidencebinding/providers_contract_test.go", "evidencebinding/doc.go",
         "evidencebinding/README.md", "evidencebinding/PROVIDERS.md",
     )
