@@ -98,8 +98,11 @@ flowchart LR
     SIGN --> HEAD[Verified evidence head]
     HEAD --> IMMU[(immudb anchor)]
     HEAD --> FABRIC[(Fabric committed anchor)]
-    IMMU --> CHECK[Independent completeness and denial checks]
-    FABRIC --> CHECK
+    IMMU --> QUORUM[N-of-M AnchorThresholdPolicy]
+    FABRIC --> QUORUM
+    QUORUM --> CHECK[Independent completeness and denial checks]
 ```
 
-Using both external providers gives independent failure domains, but it does not remove the need to protect signing keys, trust-policy configuration, immudb client state, Fabric identities, bridge credentials, or transport security.
+`AnchorThresholdPolicy` counts at most one valid receipt from each configured provider. Duplicate receipts, unknown providers, invalid receipts, and failed verification never increase quorum. This permits policies such as two valid anchors out of three independently operated providers.
+
+Using multiple external providers gives independent failure domains, but it does not remove the need to protect signing keys, trust-policy configuration, immudb client state, Fabric identities, bridge credentials, or transport security.
