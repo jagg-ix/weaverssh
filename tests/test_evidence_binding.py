@@ -134,3 +134,21 @@ def test_private_research_terms_are_absent() -> None:
     joined = "\n".join(read(path).lower() for path in paths)
     assert "gartner" not in joined
     assert "managed file transfer" not in joined
+
+
+def main() -> None:
+    checks = (
+        test_domain_separated_merkle_and_statement_contracts,
+        test_trusted_signatures_chain_and_witness_contracts,
+        test_adversarial_unit_suite_covers_denial_attempts,
+        test_mermaid_algorithms_and_security_boundary_are_documented,
+        test_build_targets_and_package_documentation_remain_connected,
+        test_private_research_terms_are_absent,
+    )
+    for check in checks:
+        check()
+    print(f"evidence-binding static contract: {len(checks)} checks passed")
+
+
+if __name__ == "__main__":
+    main()
