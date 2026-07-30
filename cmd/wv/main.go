@@ -30,6 +30,7 @@ func main() {
 	verb, rest := args[0], args[1:]
 	switch verb {
 	case "agent": runApp("wv agent", app.RunAgent, rest)
+	case "agent-evidence", "evidence-agent": os.Exit(cmdAgentEvidence(rest))
 	case "ssh-agent": os.Exit(cmdSSHAgent(rest))
 	case "agent-bridge", "ssh-agent-bridge", "pageant-bridge": os.Exit(cmdAgentBridge(rest))
 	case "authproof", "proof": os.Exit(cmdAuthproof(rest))
@@ -112,6 +113,7 @@ Dynamic session and credentials:
   keygen              Generate Ed25519 keys
   ssh-agent           Inspect and manage OpenSSH agent identities
   agent-bridge        Bridge a local ssh-agent socket to another agent (Windows OpenSSH/Pageant)
+  agent-evidence      Run an agent with signed embedded evidence and authenticated status/verify/export
   authproof           Issue and verify short-lived runtime grants
   reconnect-identity  Issue and verify reconnect identities
   session-host        Allocate an isolated X display and serve capabilities
@@ -155,7 +157,7 @@ Configuration and compute:
   origin-runtime 9p-adapter instrument flow deps install push-agent build completion
 
 Infrastructure compatibility:
-  agent proxy relay server share mount unmount sshfs status
+  agent agent-evidence proxy relay server share mount unmount sshfs status
 
 Run 'wv <command> -h' for command-specific flags.
 `)

@@ -1,0 +1,84 @@
+name: evidence provider stack ci
+
+on:
+  pull_request:
+    branches:
+      - agent/nonrepudiation-adversarial-tests
+    paths:
+      - 'evidencebinding/**'
+      - 'fabricbridge/**'
+      - 'internal/app/**'
+      - 'cmd/wv-evidence-anchor/**'
+      - 'cmd/wv-fabric-anchor-bridge/**'
+      - 'deploy/evidence/**'
+      - 'deploy/fabric/evidence-chaincode/**'
+      - 'scripts/evidence/**'
+      - 'docs/architecture/evidence-provider-operations.md'
+      - 'docs/architecture/agent-embedded-immudb.md'
+      - 'docs/examples/evidence-binding/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'mk/evidence-binding.mk'
+      - '.github/workflows/evidence-provider-*.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+      - name: Verify root module lock
+        run: |
+          go mod download
+          go mod verify
+      - name: Build
+        run: go build -mod=readonly ./...
+      - name: Vet
+        run: go vet -mod=readonly ./...
+      - name: Unit tests
+        run: go test -mod=readonly -count=1 ./evidencebinding ./fabricbridge ./internal/app ./cmd/wv-evidence-anchor ./cmd/wv-fabric-anchor-bridge
+      - name: Race tests
+        run: go test -mod=readonly -race -count=1 ./evidencebinding ./fabricbridge ./internal/app
+      - name: Ensure root module lock is unchanged
+        run: git diff --exit-code -- go.mod go.sum
+      - name: Build and test Fabric chaincode module
+        working-directory: deploy/fabric/evidence-chaincode
+        run: |
+          go mod download
+          go mod verify
+          go vet -mod=readonly ./...
+          go test -mod=readonly -count=1 ./...
+          git diff --exit-code -- go.mod go.sum
+
+  cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: freebsd, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+      - name: Build provider commands
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -mod=readonly -o /dev/null ./cmd/wv-evidence-anchor
+          go build -mod=readonly -o /dev/null ./cmd/wv-fabric-anchor-bridge

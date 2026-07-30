@@ -1,0 +1,65 @@
+name: agent evidence automation ci
+
+on:
+  pull_request:
+    branches:
+      - agent/evidence-provider-integration
+    paths:
+      - 'evidencebinding/**'
+      - 'internal/app/**'
+      - 'socketcontrol/**'
+      - 'cmd/wv/**'
+      - 'docs/architecture/agent-evidence-automation.md'
+      - '.github/workflows/agent-evidence-automation-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+      - name: Verify module lock
+        run: |
+          go mod download
+          go mod verify
+      - name: Build
+        run: go build -mod=readonly ./...
+      - name: Vet
+        run: go vet -mod=readonly ./...
+      - name: Focused tests
+        run: go test -mod=readonly -count=1 ./evidencebinding ./internal/app ./socketcontrol ./cmd/wv
+      - name: Race tests
+        run: go test -mod=readonly -race -count=1 ./evidencebinding ./internal/app ./socketcontrol
+      - name: Module lock unchanged
+        run: git diff --exit-code -- go.mod go.sum
+
+  cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
+          - { goos: windows, goarch: amd64 }
+          - { goos: freebsd, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: true
+      - name: Build unified command
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: go build -mod=readonly -o /dev/null ./cmd/wv
