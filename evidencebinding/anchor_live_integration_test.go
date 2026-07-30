@@ -4,6 +4,8 @@ package evidencebinding
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"os"
 	"strings"
@@ -55,6 +57,6 @@ func TestLiveFabricAnchor(t *testing.T) {
 }
 
 func liveHead(label string) Head {
-	seed := SHA256Hex([]byte(label + time.Now().UTC().Format(time.RFC3339Nano)))
-	return Head{StreamID: "live/" + label, Sequence: 1, StatementSHA256: seed}
+	sum := sha256.Sum256([]byte(label + time.Now().UTC().Format(time.RFC3339Nano)))
+	return Head{StreamID: "live/" + label, Sequence: 1, StatementSHA256: hex.EncodeToString(sum[:])}
 }
