@@ -7,13 +7,17 @@ on:
     paths:
       - 'evidencebinding/**'
       - 'fabricbridge/**'
+      - 'internal/app/**'
       - 'cmd/wv-evidence-anchor/**'
       - 'cmd/wv-fabric-anchor-bridge/**'
       - 'deploy/evidence/**'
       - 'deploy/fabric/evidence-chaincode/**'
       - 'scripts/evidence/**'
       - 'docs/architecture/evidence-provider-operations.md'
+      - 'docs/architecture/agent-embedded-immudb.md'
       - 'docs/examples/evidence-binding/**'
+      - 'go.mod'
+      - 'go.sum'
       - 'mk/evidence-binding.mk'
       - '.github/workflows/evidence-provider-*.yml'
 
@@ -29,14 +33,16 @@ jobs:
         with:
           go-version: '1.23.2'
           cache: true
+      - name: Generate root module lock
+        run: go mod tidy
       - name: Build
         run: go build ./...
       - name: Vet
         run: go vet ./...
       - name: Unit tests
-        run: go test -count=1 ./evidencebinding ./fabricbridge ./cmd/wv-evidence-anchor ./cmd/wv-fabric-anchor-bridge
+        run: go test -count=1 ./evidencebinding ./fabricbridge ./internal/app ./cmd/wv-evidence-anchor ./cmd/wv-fabric-anchor-bridge
       - name: Race tests
-        run: go test -race -count=1 ./evidencebinding ./fabricbridge
+        run: go test -race -count=1 ./evidencebinding ./fabricbridge ./internal/app
       - name: Build and test Fabric chaincode module
         working-directory: deploy/fabric/evidence-chaincode
         run: |
@@ -45,6 +51,14 @@ jobs:
           go vet -mod=readonly ./...
           go test -mod=readonly -count=1 ./...
           git diff --exit-code -- go.mod go.sum
+      - name: Export root module lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: embedded-immudb-root-module-lock
+          path: |
+            go.mod
+            go.sum
+          if-no-files-found: error
 
   cross-build:
     runs-on: ubuntu-latest
