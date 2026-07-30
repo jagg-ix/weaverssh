@@ -23,7 +23,8 @@ type AnchorProviderConfigFile struct {
 type AnchorProviderConfig struct {
 	Name           string `json:"name"`
 	Type           string `json:"type"`
-	BaseURL        string `json:"base_url"`
+	BaseURL        string `json:"base_url,omitempty"`
+	Path           string `json:"path,omitempty"`
 	Token          string `json:"token,omitempty"`
 	TokenEnv       string `json:"token_env,omitempty"`
 	Channel        string `json:"channel,omitempty"`
@@ -81,18 +82,28 @@ func (c AnchorProviderConfigFile) Validate() error {
 	for _, provider := range c.Providers {
 		name := strings.TrimSpace(provider.Name)
 		providerType := strings.ToLower(strings.TrimSpace(provider.Type))
-		if name == "" || strings.TrimSpace(provider.BaseURL) == "" {
-			return fmt.Errorf("%w: provider name and base_url are required", ErrInvalidAnchor)
+		if name == "" {
+			return fmt.Errorf("%w: provider name is required", ErrInvalidAnchor)
 		}
 		if _, exists := seen[name]; exists {
 			return fmt.Errorf("%w: duplicate provider %s", ErrInvalidAnchor, name)
 		}
 		seen[name] = struct{}{}
 		switch providerType {
+		case EmbeddedImmuDBProviderName:
+			if strings.TrimSpace(provider.Path) == "" {
+				return fmt.Errorf("%w: embedded immudb provider %s requires path", ErrInvalidAnchor, name)
+			}
+			if strings.TrimSpace(provider.BaseURL) != "" || strings.TrimSpace(provider.Token) != "" || strings.TrimSpace(provider.TokenEnv) != "" {
+				return fmt.Errorf("%w: embedded immudb provider %s does not accept remote URL or token fields", ErrInvalidAnchor, name)
+			}
 		case ImmuDBProviderName:
+			if strings.TrimSpace(provider.BaseURL) == "" {
+				return fmt.Errorf("%w: immudb provider %s requires base_url", ErrInvalidAnchor, name)
+			}
 		case FabricProviderName:
-			if strings.TrimSpace(provider.Channel) == "" || strings.TrimSpace(provider.Chaincode) == "" {
-				return fmt.Errorf("%w: fabric provider %s requires channel and chaincode", ErrInvalidAnchor, name)
+			if strings.TrimSpace(provider.BaseURL) == "" || strings.TrimSpace(provider.Channel) == "" || strings.TrimSpace(provider.Chaincode) == "" {
+				return fmt.Errorf("%w: fabric provider %s requires base_url, channel, and chaincode", ErrInvalidAnchor, name)
 			}
 		default:
 			return fmt.Errorf("%w: unsupported provider type %q", ErrInvalidAnchor, provider.Type)
@@ -109,16 +120,25 @@ func (c AnchorProviderConfigFile) Build(client *http.Client, getenv func(string)
 		getenv = os.Getenv
 	}
 	providers := make([]AnchorProvider, 0, len(c.Providers))
+	fail := func(err error) ([]AnchorProvider, AnchorThresholdPolicy, error) {
+		return nil, AnchorThresholdPolicy{}, errors.Join(err, CloseAnchorProviders(providers))
+	}
 	for _, configured := range c.Providers {
 		token := strings.TrimSpace(configured.Token)
 		if envName := strings.TrimSpace(configured.TokenEnv); envName != "" {
 			token = strings.TrimSpace(getenv(envName))
 			if token == "" {
-				return nil, AnchorThresholdPolicy{}, fmt.Errorf("%w: provider %s token environment %s is empty", ErrInvalidAnchor, configured.Name, envName)
+				return fail(fmt.Errorf("%w: provider %s token environment %s is empty", ErrInvalidAnchor, configured.Name, envName))
 			}
 		}
 		var provider AnchorProvider
 		switch strings.ToLower(strings.TrimSpace(configured.Type)) {
+		case EmbeddedImmuDBProviderName:
+			embedded, err := OpenEmbeddedImmuDBAnchor(configured.Path)
+			if err != nil {
+				return fail(err)
+			}
+			provider = embedded
 		case ImmuDBProviderName:
 			provider = ImmuDBAnchor{BaseURL: configured.BaseURL, Token: token, Client: client}
 		case FabricProviderName:
@@ -137,9 +157,23 @@ func (c AnchorProviderConfigFile) Build(client *http.Client, getenv func(string)
 	}
 	policy, err := NewAnchorThresholdPolicy(providers, threshold)
 	if err != nil {
-		return nil, AnchorThresholdPolicy{}, err
+		return fail(err)
 	}
 	return providers, policy, nil
+}
+
+// CloseAnchorProviders closes any configured providers that own local resources.
+// Remote providers are ignored. All close errors are joined.
+func CloseAnchorProviders(providers []AnchorProvider) error {
+	var errs []error
+	for index := len(providers) - 1; index >= 0; index-- {
+		if closer, ok := providers[index].(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // NamedAnchorProvider permits multiple independently operated instances of the
@@ -177,4 +211,11 @@ func (p NamedAnchorProvider) Verify(ctx context.Context, head Head, receipt Anch
 	delegated := receipt
 	delegated.Provider = p.Inner.Name()
 	return p.Inner.Verify(ctx, head, delegated)
+}
+
+func (p NamedAnchorProvider) Close() error {
+	if closer, ok := p.Inner.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
 }
