@@ -54,6 +54,7 @@ go build -o "$BRIDGE_BIN" ./cmd/wv-fabric-anchor-bridge
   --orderer-ca "$NETWORK/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" \
   --peer-address localhost:7051 \
   --peer-tls-root "$CORE_PEER_TLS_ROOTCERT_FILE" \
+  --wait-for-event 30s \
   --query-function ReadEvidenceAnchor \
   >"$WORKDIR/fabric-bridge.log" 2>&1 &
 bridge_pid=$!
