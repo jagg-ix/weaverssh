@@ -1,0 +1,23 @@
+{
+  "version": "weaverssh.evidence-provider-config.v1",
+  "threshold": 2,
+  "providers": [
+    {
+      "name": "immudb-primary",
+      "type": "immudb",
+      "base_url": "http://127.0.0.1:3323",
+      "token_env": "WEAVERSSH_IMMUGW_TOKEN"
+    },
+    {
+      "name": "fabric-consortium",
+      "type": "fabric",
+      "base_url": "http://127.0.0.1:8097",
+      "token_env": "WEAVERSSH_FABRIC_BRIDGE_TOKEN",
+      "channel": "mychannel",
+      "chaincode": "weaverssh-evidence",
+      "contract": "EvidenceContract",
+      "submit_function": "AnchorEvidence",
+      "query_function": "ReadEvidenceAnchor"
+    }
+  ]
+}
