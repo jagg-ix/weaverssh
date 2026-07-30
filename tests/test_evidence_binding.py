@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 
@@ -11,108 +10,127 @@ def read(path: str) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
-def test_merkle_and_statement_chain_contracts() -> None:
-    merkle = read("evidencebinding/merkle.go")
-    manager = read("evidencebinding/manager_seal.go")
-    assert "hashLeaf" in merkle and "payload[0] = 0" in merkle
-    assert "hashNode" in merkle and "payload[0] = 1" in merkle
-    assert "BuildMerkleProof" in merkle
-    assert "VerifyMerkleProof" in merkle
-    assert "PreviousSHA256" in manager
-    assert "pending checkpoint does not match monotonic metadata" in manager
+def test_domain_separated_merkle_and_statement_contracts() -> None:
+    source = read("evidencebinding/nonrepudiation.go")
 
+    assert 'leafDomain      = "weaverssh:evidence:leaf:v1\\x00"' in source
+    assert 'nodeDomain      = "weaverssh:evidence:node:v1\\x00"' in source
+    assert 'statementDomain = "weaverssh:evidence:statement:v1\\x00"' in source
+    assert "payload[0] = 0" in source
+    assert "payload[0] = 1" in source
 
-def test_signature_algorithms_and_private_key_boundaries() -> None:
-    signer = read("evidencebinding/signer.go")
-    trust = read("evidencebinding/signer_trust.go")
-    for algorithm in (
-        "rsa-pss-sha256",
-        "ecdsa-p256-sha256",
-        "ecdsa-p384-sha384",
-        "ed25519",
+    for symbol in (
+        "NewLeaf",
+        "VerifyPayload",
+        "BuildMerkleRoot",
+        "BuildMerkleProof",
+        "VerifyMerkleProof",
+        "NewStatement",
+        "PreviousSHA256",
     ):
-        assert algorithm in signer
-    assert "AgentMessageSigner" in signer
-    assert "must not be accessible by group or others" in signer
-    assert "VerifySignature" in signer
-    assert "public key does not match configured trust anchor" in trust
+        assert symbol in source
 
 
-def test_anchor_providers_bind_exact_statement() -> None:
-    core = read("evidencebinding/anchor.go")
-    immu = read("evidencebinding/anchor_immugw.go")
-    bridge = read("evidencebinding/anchor_bridge.go")
-    assert 'case "immugw"' in core
-    assert 'case "fabric"' in core
-    assert 'case "http"' in core
-    assert "/v1/immurestproxy/item/safe" in immu
-    assert "/v1/immurestproxy/item/safe/get" in immu
-    assert "requireStatementEcho" in bridge
-    assert "idempotency_key" in bridge
-    assert "channel" in bridge and "chaincode" in bridge and "function" in bridge
+def test_trusted_signatures_chain_and_witness_contracts() -> None:
+    source = read("evidencebinding/nonrepudiation.go")
+
+    for symbol in (
+        "AlgorithmEd25519",
+        "GenerateEd25519Signer",
+        "KeyID",
+        "SignStatement",
+        "NewTrustPolicy",
+        "ed25519.Verify",
+        "VerifyLedger",
+        "WitnessedHead",
+        "NewWitness",
+        "ErrEquivocation",
+        "ErrHeadMismatch",
+        "DecodeSignedStatement",
+        "DisallowUnknownFields",
+    ):
+        assert symbol in source
+
+    # The embedded key cannot authorize itself. Verification resolves the
+    # statement key ID through configured trust, then requires exact key bytes.
+    assert "trusted, ok := p.keys[signed.Statement.SignerKeyID]" in source
+    assert "!bytes.Equal(trusted, encodedPublic)" in source
 
 
-def test_append_only_state_and_anchor_threshold() -> None:
-    manager = read("evidencebinding/manager.go")
-    seal = read("evidencebinding/manager_seal.go")
-    helpers = read("evidencebinding/manager_helpers.go")
-    assert "CompareAndSwap" in manager
-    assert "validateAnchorThreshold" in seal
-    assert "verifyConfiguredSignatures" in seal
-    for prefix in ("leaves/", "digests/", "statements/", "signatures/", "anchors/", "complete/"):
-        assert prefix in helpers
+def test_adversarial_unit_suite_covers_denial_attempts() -> None:
+    tests = read("evidencebinding/nonrepudiation_test.go")
+
+    for test_name in (
+        "TestNonRepudiationBindsPayloadMerkleRootAndSigner",
+        "TestNonRepudiationRejectsPayloadAndStatementTampering",
+        "TestNonRepudiationRejectsKeySubstitutionAndCrossStreamReplay",
+        "TestNonRepudiationRejectsRemovalReorderingReplayAndWitnessedTruncation",
+        "TestNonRepudiationWitnessDetectsSignerEquivocation",
+        "TestNonRepudiationDetachedReceiptSurvivesLocalRecordDenial",
+    ):
+        assert f"func {test_name}" in tests
+
+    for failure in (
+        "ErrInvalidSignature",
+        "ErrInvalidProof",
+        "ErrUntrustedSigner",
+        "ErrWrongStream",
+        "ErrBrokenChain",
+        "ErrHeadMismatch",
+        "ErrEquivocation",
+    ):
+        assert failure in tests
 
 
-def test_cli_examples_and_go123_gate() -> None:
-    main = read("cmd/wv/main.go")
-    command = read("cmd/wv/evidence.go")
-    catalog = read("cmd/wv/command_catalog_complete.go")
-    makefile = read("GNUmakefile")
-    targets = read("mk/evidence-binding.mk")
-    gate = read("tools/verification/build_go123.sh")
-    assert 'case "evidence", "notary": os.Exit(cmdEvidence(rest))' in main
-    assert '"evidence"' in catalog and '"notary"' in catalog
-    for subcommand in ("validate", "append", "status", "verify", "proof", "proof-verify", "ingest-audit"):
-        assert f'case "{subcommand}"' in command
-    assert 'case "flush", "seal"' in command
-    assert "include mk/evidence-binding.mk" in makefile
-    assert "evidence-binding-focused-test:" in targets
-    assert "evidence-binding-race-test:" in targets
-    assert "test-evidence-binding-static:" in targets
-    assert "./evidencebinding" in gate
-    for name in ("local.json", "immugw.json", "fabric.json"):
-        document = json.loads(read(f"docs/examples/evidence-binding/{name}"))
-        assert document["version"] == "weaverssh.evidence-binding.v1"
+def test_mermaid_algorithms_and_security_boundary_are_documented() -> None:
+    documentation = read("evidencebinding/README.md")
 
+    assert documentation.count("```mermaid") == 9
+    for heading in (
+        "## 1. Evidence commitment",
+        "## 2. Merkle-root construction",
+        "## 3. Merkle inclusion proof",
+        "## 4. Signed checkpoint creation",
+        "## 5. Trusted signature verification",
+        "## 6. Append-only ledger verification",
+        "## 7. Independently witnessed head",
+        "## 8. Equivocation detection",
+        "## 9. Detached receipt verification",
+    ):
+        assert heading in documentation
 
-def test_documentation_states_trust_boundaries() -> None:
-    documentation = read("docs/architecture/cryptographic-evidence-binding.md").lower()
+    lowered = documentation.lower()
     for phrase in (
-        "does not copy file contents",
-        "domain-separated",
-        "is not itself an immutable database",
-        "does not import a fabric sdk",
-        "does not make an ordinary filesystem or database physically immutable",
-        "non-repudiation",
-        "private keys",
+        "authentic prefix",
+        "completeness not bound",
+        "independently retained witnessed head",
+        "key-substitution attempt detected",
+        "truncation detected",
+        "does not make ordinary local storage physically immutable",
     ):
-        assert phrase in documentation
+        assert phrase in lowered
+
+
+def test_build_targets_and_package_documentation_remain_connected() -> None:
+    targets = read("mk/evidence-binding.mk")
+    package_doc = read("evidencebinding/doc.go")
+    readme_contract = read("evidencebinding/readme_contract_test.go")
+
+    assert "go test -count=1 ./evidencebinding" in targets
+    assert "go test -race -count=1 ./evidencebinding" in targets
+    assert "tests/test_evidence_binding.py" in targets
+    assert "independently retained witnessed head" in package_doc
+    assert 'strings.Count(documentation, "```mermaid")' in readme_contract
 
 
 def test_private_research_terms_are_absent() -> None:
-    paths = [
-        "evidencebinding/config.go",
-        "evidencebinding/merkle.go",
-        "evidencebinding/signer.go",
-        "evidencebinding/anchor.go",
-        "evidencebinding/anchor_immugw.go",
-        "evidencebinding/anchor_bridge.go",
-        "evidencebinding/manager.go",
-        "evidencebinding/manager_seal.go",
-        "evidencebinding/manager_read.go",
-        "cmd/wv/evidence.go",
-        "docs/architecture/cryptographic-evidence-binding.md",
-    ]
+    paths = (
+        "evidencebinding/nonrepudiation.go",
+        "evidencebinding/nonrepudiation_test.go",
+        "evidencebinding/readme_contract_test.go",
+        "evidencebinding/doc.go",
+        "evidencebinding/README.md",
+    )
     joined = "\n".join(read(path).lower() for path in paths)
     assert "gartner" not in joined
     assert "managed file transfer" not in joined
