@@ -1,0 +1,17 @@
+{
+  "version": "weaverssh.evidence-provider-config.v1",
+  "threshold": 2,
+  "providers": [
+    {
+      "name": "node-local",
+      "type": "embedded-immudb",
+      "path": ".wv/evidence/immudb"
+    },
+    {
+      "name": "independent-immudb",
+      "type": "immudb",
+      "base_url": "https://immugw.example.internal",
+      "token_env": "WEAVERSSH_IMMUGW_TOKEN"
+    }
+  ]
+}
