@@ -20,6 +20,7 @@ func TestProviderDocumentationMatchesImplementedBindingOptions(t *testing.T) {
 		"RSA-PSS/SHA-256", "ECDSA P-256/SHA-256", "ECDSA P-384/SHA-384", "Ed25519",
 		"/item/safe", "/item/safe/get", "successful commit status", "exact statement echo",
 		"rewritten final entry requires an independently retained old head",
+		"AnchorThresholdPolicy", "Duplicate receipts", "never increase quorum",
 	} {
 		if !strings.Contains(text, phrase) {
 			t.Errorf("PROVIDERS.md missing %q", phrase)
@@ -29,8 +30,8 @@ func TestProviderDocumentationMatchesImplementedBindingOptions(t *testing.T) {
 
 func TestAllFiveBindingOptionsHaveExecutableCoverage(t *testing.T) {
 	files := []string{
-		"binding_options_test.go", "signature_suite_test.go", "anchor_test.go",
-		"signature_suite.go", "anchor_immudb.go", "anchor_fabric.go",
+		"binding_options_test.go", "signature_suite_test.go", "anchor_test.go", "anchor_threshold_test.go",
+		"signature_suite.go", "anchor_immudb.go", "anchor_fabric.go", "anchor_threshold.go",
 	}
 	var joined strings.Builder
 	for _, path := range files {
@@ -47,8 +48,11 @@ func TestAllFiveBindingOptionsHaveExecutableCoverage(t *testing.T) {
 		"TestSignatureSuiteSupportsRSAECDSAAndEd25519",
 		"TestImmuDBAnchorUsesVerifiedSafeSetAndSafeGet",
 		"TestFabricAnchorRequiresCommittedExactStatementEcho",
+		"TestAnchorThresholdAcceptsTwoIndependentProviders",
+		"TestAnchorThresholdRejectsDuplicatesUnknownsAndInsufficientQuorum",
 		"AlgorithmRSAPSSSHA256", "AlgorithmECDSAP256SHA256", "AlgorithmECDSAP384SHA384",
-		"ImmuDBAnchor", "FabricAnchor", "ErrAnchorNotCommitted", "ErrAnchorMismatch",
+		"ImmuDBAnchor", "FabricAnchor", "AnchorThresholdPolicy",
+		"ErrAnchorNotCommitted", "ErrAnchorMismatch", "ErrAnchorThreshold",
 	} {
 		if !strings.Contains(source, symbol) {
 			t.Errorf("binding coverage missing %q", symbol)
