@@ -25,7 +25,11 @@ func NewBufferSynced(conn io.ReadWriteCloser, config Config, coordinator *flowco
 	if coordinator == nil { return nil, errors.New("sessionmux protocol buffer coordinator is required") }
 	snapshot := coordinator.Current()
 	if err := snapshot.Validate(); err != nil { return nil, err }
-	config = ConfigWithProtocolBuffers(config, snapshot.Buffers)
+	buffers := snapshot.Buffers.Normalized()
+	if uint64(buffers.SSHChannelWindowBytes) > uint64(maxInitialWindow) {
+		return nil, fmt.Errorf("SSH channel window %d exceeds safety limit %d", buffers.SSHChannelWindowBytes, maxInitialWindow)
+	}
+	config = ConfigWithProtocolBuffers(config, buffers)
 	mux, err := New(conn, config)
 	if err != nil { return nil, err }
 	wrapped := &BufferSyncedMux{Mux: mux, name: fmt.Sprintf("ssh-channel-%p", mux), coordinator: coordinator}
