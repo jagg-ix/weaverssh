@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package weaverssh.protocolbuffers.v1;
+
+option go_package = "weaverssh/api/contracts/protocolbuffersv1";
+
+// ProtocolBufferSync carries the exact digest-bound update envelope used by
+// MQTT settings topics and SSH control streams. The service does not expose
+// independently editable transport fields.
+service ProtocolBufferSync {
+  rpc ApplyBufferUpdate(ApplyBufferUpdateRequest) returns (ApplyBufferUpdateResponse);
+  rpc GetBufferSnapshot(GetBufferSnapshotRequest) returns (GetBufferSnapshotResponse);
+}
+
+message ApplyBufferUpdateRequest {
+  // Strict JSON encoding of weaverssh.protocol-buffers.v1 BufferUpdate.
+  bytes update = 1;
+}
+
+message ApplyBufferUpdateResponse {
+  string version = 1;
+  uint64 generation = 2;
+  string sha256 = 3;
+}
+
+message GetBufferSnapshotRequest {}
+
+message GetBufferSnapshotResponse {
+  string version = 1;
+  uint64 generation = 2;
+  string sha256 = 3;
+  ProtocolBuffers buffers = 4;
+}
+
+message ProtocolBuffers {
+  uint32 frame_bytes = 1;
+  uint32 queue_depth = 2;
+  uint32 window_bytes = 3;
+
+  uint32 mqtt_read_buffer_bytes = 10;
+  uint32 mqtt_write_buffer_bytes = 11;
+  uint32 mqtt_max_packet_bytes = 12;
+
+  uint32 ssh_channel_frame_bytes = 20;
+  uint32 ssh_channel_window_bytes = 21;
+
+  uint32 grpc_read_buffer_bytes = 30;
+  uint32 grpc_write_buffer_bytes = 31;
+  uint32 grpc_initial_window_bytes = 32;
+  uint32 grpc_initial_conn_window_bytes = 33;
+  uint32 grpc_max_message_bytes = 34;
+}
