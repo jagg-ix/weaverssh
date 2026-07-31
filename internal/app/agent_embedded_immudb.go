@@ -48,11 +48,14 @@ func (c AgentEmbeddedImmuDBConfig) Validate() error {
 }
 
 // AgentRuntimeWithEmbeddedImmuDB couples the normal agent runtime with a local
-// embedded immudb anchor provider and an append-only signed event journal.
+// embedded immudb anchor provider, append-only signed event journal, and an
+// optional durable remote N-of-M delivery queue.
 type AgentRuntimeWithEmbeddedImmuDB struct {
 	*AgentRuntime
 	provider evidencebinding.NamedAnchorProvider
 	journal  *evidencebinding.AgentEvidenceJournal
+	remoteMu sync.RWMutex
+	remote   *evidencebinding.AgentRemoteAnchorQueue
 	closeOnce sync.Once
 	closeErr  error
 }
@@ -136,6 +139,78 @@ func (r *AgentRuntimeWithEmbeddedImmuDB) ExportEvidenceJournal() evidencebinding
 	return r.journal.Export()
 }
 
+func (r *AgentRuntimeWithEmbeddedImmuDB) CreateEvidenceSnapshot() (evidencebinding.AgentJournalSnapshot, error) {
+	if r == nil || r.journal == nil {
+		return evidencebinding.AgentJournalSnapshot{}, evidencebinding.ErrInvalidEvidence
+	}
+	r.remoteMu.RLock()
+	remote := r.remote
+	r.remoteMu.RUnlock()
+	if remote == nil {
+		return r.journal.Snapshot()
+	}
+	exported := remote.Export()
+	return r.journal.SnapshotWithRemote(&exported)
+}
+
+func (r *AgentRuntimeWithEmbeddedImmuDB) EnableRemoteEvidenceDelivery(queue *evidencebinding.AgentRemoteAnchorQueue) error {
+	if r == nil || r.journal == nil || queue == nil {
+		return evidencebinding.ErrInvalidAnchor
+	}
+	r.remoteMu.Lock()
+	if r.remote != nil {
+		r.remoteMu.Unlock()
+		return errors.New("remote evidence delivery is already enabled")
+	}
+	r.remote = queue
+	r.remoteMu.Unlock()
+	for _, record := range r.journal.Export().Records {
+		if err := queue.Enqueue(record.Head); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *AgentRuntimeWithEmbeddedImmuDB) RemoteEvidenceStatus() evidencebinding.AgentRemoteQueueStatus {
+	if r == nil {
+		return evidencebinding.AgentRemoteQueueStatus{Version: evidencebinding.AgentRemoteQueueVersion}
+	}
+	r.remoteMu.RLock()
+	remote := r.remote
+	r.remoteMu.RUnlock()
+	if remote == nil {
+		return evidencebinding.AgentRemoteQueueStatus{Version: evidencebinding.AgentRemoteQueueVersion}
+	}
+	return remote.Status()
+}
+
+func (r *AgentRuntimeWithEmbeddedImmuDB) FlushRemoteEvidence(ctx context.Context) (evidencebinding.AgentRemoteFlushReport, error) {
+	if r == nil {
+		return evidencebinding.AgentRemoteFlushReport{}, evidencebinding.ErrInvalidAnchor
+	}
+	r.remoteMu.RLock()
+	remote := r.remote
+	r.remoteMu.RUnlock()
+	if remote == nil {
+		return evidencebinding.AgentRemoteFlushReport{Version: evidencebinding.AgentRemoteQueueVersion, Status: r.RemoteEvidenceStatus()}, nil
+	}
+	return remote.Flush(ctx, true)
+}
+
+func (r *AgentRuntimeWithEmbeddedImmuDB) ExportRemoteEvidence() evidencebinding.AgentRemoteQueueExport {
+	if r == nil {
+		return evidencebinding.AgentRemoteQueueExport{Version: evidencebinding.AgentRemoteQueueVersion}
+	}
+	r.remoteMu.RLock()
+	remote := r.remote
+	r.remoteMu.RUnlock()
+	if remote == nil {
+		return evidencebinding.AgentRemoteQueueExport{Version: evidencebinding.AgentRemoteQueueVersion, Status: r.RemoteEvidenceStatus()}
+	}
+	return remote.Export()
+}
+
 func (r *AgentRuntimeWithEmbeddedImmuDB) AnchorEvidenceHead(ctx context.Context, head evidencebinding.Head) (evidencebinding.AnchorReceipt, error) {
 	if r == nil || r.AgentRuntime == nil {
 		return evidencebinding.AnchorReceipt{}, evidencebinding.ErrInvalidAnchor
@@ -211,8 +286,18 @@ func (r *AgentRuntimeWithEmbeddedImmuDB) recordEvidence(kind, subject string, de
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if _, err := r.journal.Record(ctx, kind, subject, details); err != nil {
+	record, err := r.journal.Record(ctx, kind, subject, details)
+	if err != nil {
 		log.Printf("agent evidence journal %s: %v", kind, err)
+		return
+	}
+	r.remoteMu.RLock()
+	remote := r.remote
+	r.remoteMu.RUnlock()
+	if remote != nil {
+		if err := remote.Enqueue(record.Head); err != nil {
+			log.Printf("agent evidence remote enqueue %s: %v", kind, err)
+		}
 	}
 }
 
@@ -223,6 +308,18 @@ func (r *AgentRuntimeWithEmbeddedImmuDB) Close() error {
 	r.closeOnce.Do(func() {
 		r.recordEvidence("runtime.stopping", r.EvidenceStatus().StreamID, nil)
 		var errs []error
+		r.remoteMu.Lock()
+		remote := r.remote
+		r.remote = nil
+		r.remoteMu.Unlock()
+		if remote != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			_, _ = remote.Flush(ctx, true)
+			cancel()
+			if err := remote.Close(); err != nil {
+				errs = append(errs, err)
+			}
+		}
 		if r.journal != nil {
 			if err := r.journal.Close(); err != nil {
 				errs = append(errs, err)
