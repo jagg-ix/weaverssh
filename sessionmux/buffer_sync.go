@@ -15,6 +15,7 @@ import (
 // frame limits cannot be revoked safely.
 type BufferSyncedMux struct {
 	*Mux
+	name string
 	coordinator *flowcontrol.BufferCoordinator
 	unregister func()
 	closeOnce sync.Once
@@ -27,7 +28,7 @@ func NewBufferSynced(conn io.ReadWriteCloser, config Config, coordinator *flowco
 	config = ConfigWithProtocolBuffers(config, snapshot.Buffers)
 	mux, err := New(conn, config)
 	if err != nil { return nil, err }
-	wrapped := &BufferSyncedMux{Mux: mux, coordinator: coordinator}
+	wrapped := &BufferSyncedMux{Mux: mux, name: fmt.Sprintf("ssh-channel-%p", mux), coordinator: coordinator}
 	unregister, err := coordinator.Register(wrapped)
 	if err != nil { _ = mux.Close(); return nil, err }
 	wrapped.unregister = unregister
@@ -46,7 +47,10 @@ func ConfigWithProtocolBuffers(config Config, buffers flowcontrol.ProtocolBuffer
 	return config
 }
 
-func (m *BufferSyncedMux) ProtocolBufferName() string { return "ssh-channel" }
+func (m *BufferSyncedMux) ProtocolBufferName() string {
+	if m == nil || m.name == "" { return "ssh-channel" }
+	return m.name
+}
 
 func (m *BufferSyncedMux) PrepareProtocolBuffers(snapshot flowcontrol.BufferSnapshot) error {
 	if m == nil || m.Mux == nil { return errors.New("sessionmux is nil") }
@@ -86,7 +90,6 @@ func (m *BufferSyncedMux) CommitProtocolBuffers(snapshot flowcontrol.BufferSnaps
 	if newThreshold == 0 { newThreshold = 1 }
 	newFrame := uint32(buffers.SSHChannelFrameBytes)
 	m.mu.Lock()
-	oldWindow := uint64(m.initialWindow)
 	m.initialWindow = uint32(newWindow)
 	m.windowThreshold = uint32(newThreshold)
 	m.maxDataPayload = newFrame
@@ -110,7 +113,6 @@ func (m *BufferSyncedMux) CommitProtocolBuffers(snapshot flowcontrol.BufferSnaps
 		}
 		stream.mu.Unlock()
 	}
-	_ = oldWindow
 }
 
 // ApplyBufferUpdate applies the same generation/digest update received over an
