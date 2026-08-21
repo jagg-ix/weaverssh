@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"weaverssh/authproof"
+	"weaverssh/containerexec"
 	"weaverssh/extension"
 	"weaverssh/filebackend"
 	"weaverssh/sessioncontrol"
@@ -21,6 +22,7 @@ import (
 	"weaverssh/sessiontcp"
 	"weaverssh/sessionudp"
 	"weaverssh/socksproof"
+	"weaverssh/terminalsession"
 )
 
 type HostSessionReadyFunc func(
@@ -32,29 +34,31 @@ type HostSessionReadyFunc func(
 ) (func(), error)
 
 type DynamicHostConfig struct {
-	Root                 string
-	ReadOnly             bool
-	FileBackend          filebackend.API
-	FileCoreStore        filebackend.Store
-	FileHooks            *filebackend.Registry
-	SignedContext        authproof.SignedNodeContext
-	PublicKey            ed25519.PublicKey
-	MaxTTL               time.Duration
-	TCPAllow             sessiontcp.Allowlist
-	TCPDial              sessiontcp.DialContextFunc
-	TCPProofVerifier     *socksproof.Verifier
-	TCPRequireProof      bool
-	UDPAllow             sessionudp.Allowlist
-	UDPListenPacket      sessionudp.ListenPacketFunc
-	UDPResolve           sessionudp.ResolveFunc
-	UDPReadTimeout       time.Duration
-	Extensions           *extension.Registry
-	OnReady              HostSessionReadyFunc
-	ControlOnly          bool
-	PreviousNode         string
-	HopDepth             int
-	EncodedWVHop         string
-	RouteStorePath       string
+	Root                string
+	ReadOnly            bool
+	FileBackend         filebackend.API
+	FileCoreStore       filebackend.Store
+	FileHooks           *filebackend.Registry
+	SignedContext       authproof.SignedNodeContext
+	PublicKey           ed25519.PublicKey
+	MaxTTL              time.Duration
+	TCPAllow            sessiontcp.Allowlist
+	TCPDial             sessiontcp.DialContextFunc
+	TCPProofVerifier    *socksproof.Verifier
+	TCPRequireProof     bool
+	UDPAllow            sessionudp.Allowlist
+	UDPListenPacket     sessionudp.ListenPacketFunc
+	UDPResolve          sessionudp.ResolveFunc
+	UDPReadTimeout      time.Duration
+	Extensions          *extension.Registry
+	OnReady             HostSessionReadyFunc
+	ControlOnly         bool
+	PreviousNode        string
+	HopDepth            int
+	EncodedWVHop        string
+	RouteStorePath      string
+	TerminalServer      *terminalsession.Server
+	ContainerExecServer *containerexec.Server
 }
 
 type DynamicHost struct {
@@ -68,8 +72,10 @@ func NewDynamicHost(config DynamicHostConfig) (*DynamicHost, error) {
 		config.TCPAllow.Empty() &&
 		config.UDPAllow.Empty() &&
 		!config.ControlOnly &&
-		!mapReduceEnvironmentConfigured() {
-		return nil, errors.New("dynamic host: at least one local fs, tcp, udp, or mapreduce service is required unless control-only mode is enabled")
+		!mapReduceEnvironmentConfigured() &&
+		config.TerminalServer == nil &&
+		config.ContainerExecServer == nil {
+		return nil, errors.New("dynamic host: at least one local fs, tcp, udp, programmable exec, or terminal service is required unless control-only mode is enabled")
 	}
 	if len(config.PublicKey) != ed25519.PublicKeySize {
 		return nil, errors.New("dynamic host: trusted Ed25519 public key is required")
@@ -95,22 +101,24 @@ func NewDynamicHost(config DynamicHostConfig) (*DynamicHost, error) {
 		config.TCPRequireProof = envBoolValue(os.Getenv(EnvTCPRequireProof))
 	}
 	local, err := NewLocalServices(LocalServiceConfig{
-		SignedContext:        config.SignedContext,
-		PublicKey:            config.PublicKey,
-		MaxTTL:               config.MaxTTL,
-		Root:                 config.Root,
-		ReadOnly:             config.ReadOnly,
-		FileBackend:          config.FileBackend,
-		FileCoreStore:        config.FileCoreStore,
-		FileHooks:            config.FileHooks,
-		TCPAllow:             config.TCPAllow,
-		TCPDial:              config.TCPDial,
-		TCPProofVerifier:     config.TCPProofVerifier,
-		TCPRequireProof:      config.TCPRequireProof,
-		UDPAllow:             config.UDPAllow,
-		UDPListenPacket:      config.UDPListenPacket,
-		UDPResolve:           config.UDPResolve,
-		UDPReadTimeout:       config.UDPReadTimeout,
+		SignedContext:       config.SignedContext,
+		PublicKey:           config.PublicKey,
+		MaxTTL:              config.MaxTTL,
+		Root:                config.Root,
+		ReadOnly:            config.ReadOnly,
+		FileBackend:         config.FileBackend,
+		FileCoreStore:       config.FileCoreStore,
+		FileHooks:           config.FileHooks,
+		TCPAllow:            config.TCPAllow,
+		TCPDial:             config.TCPDial,
+		TCPProofVerifier:    config.TCPProofVerifier,
+		TCPRequireProof:     config.TCPRequireProof,
+		UDPAllow:            config.UDPAllow,
+		UDPListenPacket:     config.UDPListenPacket,
+		UDPResolve:          config.UDPResolve,
+		UDPReadTimeout:      config.UDPReadTimeout,
+		TerminalServer:      config.TerminalServer,
+		ContainerExecServer: config.ContainerExecServer,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("dynamic host: %w", err)

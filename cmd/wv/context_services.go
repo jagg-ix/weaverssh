@@ -20,7 +20,7 @@ func cmdNodeContextSignServices(args []string) int {
 	nodesText := fs.String("nodes", "", "comma-separated node list, used instead of --chain")
 	currentNode := fs.String("node", firstNodeEnv(), "current node name")
 	issuer := fs.String("issuer", defaultNodeContextIssuer(), "issuer peer id")
-	capabilitiesText := fs.String("capabilities", "", "comma-separated capabilities: node.context,vfs.mesh,file.backhaul,socks.proxy")
+	capabilitiesText := fs.String("capabilities", "", "comma-separated capabilities: node.context,vfs.mesh,file.backhaul,socks.proxy,compute.mapreduce,compute.exec,terminal.session")
 	privateKey := fs.String("private-key", "", "base64url/base64/hex Ed25519 private key")
 	privateKeyFile := fs.String("private-key-file", "", "file containing Ed25519 private key")
 	ttl := fs.Duration("ttl", 5*time.Minute, "node context validity duration")
@@ -105,10 +105,13 @@ func cmdNodeContextSignServices(args []string) int {
 
 func parseNodeCapabilities(raw string) ([]string, error) {
 	allowed := map[string]bool{
-		authproof.CapabilityNodeContext:  true,
-		authproof.CapabilityVFSMesh:      true,
-		authproof.CapabilityFileBackhaul: true,
-		authproof.CapabilitySocksProxy:   true,
+		authproof.CapabilityNodeContext:     true,
+		authproof.CapabilityVFSMesh:         true,
+		authproof.CapabilityFileBackhaul:    true,
+		authproof.CapabilitySocksProxy:      true,
+		authproof.CapabilityMapReduce:       true,
+		authproof.CapabilityContainerExec:   true,
+		authproof.CapabilityTerminalSession: true,
 	}
 	seen := map[string]bool{}
 	var capabilities []string

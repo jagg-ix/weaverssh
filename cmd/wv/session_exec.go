@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"weaverssh/containerexec"
+	"weaverssh/containerstream"
 	"weaverssh/sessionbroker"
 	"weaverssh/sessionexec"
 	"weaverssh/sessionmux"
@@ -20,8 +22,9 @@ func cmdSessionExec(args []string) int {
 	inputFile := fs.String("input", "", "read bounded stdin from FILE; use - for stdin")
 	timeout := fs.Duration("timeout", 30*time.Second, "broker and command timeout")
 	jsonOut := fs.Bool("json", false, "emit response JSON")
+	containerTarget := fs.String("container", "", "stream the action inside TARGET_URI through the provider-neutral process service")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, "usage: wv exec [--input FILE] [--timeout DURATION] [--json] NODE ACTION [ARG ...]")
+		fmt.Fprintln(os.Stderr, "usage: wv exec [--container TARGET_URI] [--input FILE] [--timeout DURATION] [--json] NODE ACTION [ARG ...]")
 		fmt.Fprintln(os.Stderr, "ACTION is a policy-defined name, never an executable path or shell command.")
 		fs.PrintDefaults()
 	}
@@ -39,7 +42,24 @@ func cmdSessionExec(args []string) int {
 		fs.Usage()
 		return 2
 	}
+	if strings.TrimSpace(*containerTarget) != "" && *jsonOut {
+		fmt.Fprintln(os.Stderr, "wv exec: --json is not supported with streaming --container output")
+		return 2
+	}
+	containerMode := strings.TrimSpace(*containerTarget) != ""
+	if containerMode {
+		target, parseErr := containerstream.ParseURI(*containerTarget)
+		if parseErr != nil || target.Endpoint != node {
+			if parseErr != nil {
+				fmt.Fprintf(os.Stderr, "wv exec: invalid container target: %v\n", parseErr)
+			} else {
+				fmt.Fprintf(os.Stderr, "wv exec: container endpoint %q must match routed node %q\n", target.Endpoint, node)
+			}
+			return 2
+		}
+	}
 	var stdin []byte
+	var containerInput io.Reader
 	if strings.TrimSpace(*inputFile) != "" {
 		var reader io.Reader
 		var closer io.Closer
@@ -56,19 +76,29 @@ func cmdSessionExec(args []string) int {
 		if closer != nil {
 			defer closer.Close()
 		}
-		limited := io.LimitReader(reader, sessionexec.MaxInputBytes+1)
-		data, err := io.ReadAll(limited)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "wv exec: input: %v\n", err)
-			return 1
+		if containerMode {
+			containerInput = reader
+		} else {
+			limited := io.LimitReader(reader, sessionexec.MaxInputBytes+1)
+			data, err := io.ReadAll(limited)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "wv exec: input: %v\n", err)
+				return 1
+			}
+			if len(data) > sessionexec.MaxInputBytes {
+				fmt.Fprintf(os.Stderr, "wv exec: input exceeds %d bytes\n", sessionexec.MaxInputBytes)
+				return 2
+			}
+			stdin = data
 		}
-		if len(data) > sessionexec.MaxInputBytes {
-			fmt.Fprintf(os.Stderr, "wv exec: input exceeds %d bytes\n", sessionexec.MaxInputBytes)
-			return 2
-		}
-		stdin = data
 	}
-	metadata, err := sessionexec.NewOpenMetadata(node)
+	var metadata []byte
+	var err error
+	if containerMode {
+		metadata, err = containerexec.NewOpenMetadata(node)
+	} else {
+		metadata, err = sessionexec.NewOpenMetadata(node)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wv exec: %v\n", err)
 		return 2
@@ -84,6 +114,19 @@ func cmdSessionExec(args []string) int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "wv exec: open %s: %v\n", node, err)
 		return 1
+	}
+	if containerMode {
+		exit, callErr := containerexec.CallStream(ctx, stream, containerexec.Request{
+			TargetURI: strings.TrimSpace(*containerTarget), Action: action, Args: actionArgs,
+		}, containerInput, os.Stdout, os.Stderr)
+		if callErr != nil {
+			fmt.Fprintf(os.Stderr, "wv exec: %v\n", callErr)
+			return 1
+		}
+		if exit.ExitCode != 0 {
+			return 1
+		}
+		return 0
 	}
 	response, callErr := sessionexec.CallStream(ctx, stream, sessionexec.Request{Action: action, Args: actionArgs, Stdin: stdin, TimeoutMillis: timeout.Milliseconds()})
 	if *jsonOut {

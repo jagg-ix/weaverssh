@@ -40,9 +40,11 @@ func main() {
 	case "api": os.Exit(cmdSessionAPI(rest))
 	case "api-contract", "contracts": os.Exit(cmdAPIContract(rest))
 	case "origin-runtime", "origin-env": os.Exit(cmdOriginRuntime(rest))
+	case "container-provider", "orchestration", "stream-provider": os.Exit(cmdContainerProvider(rest))
 	case "connectivity": os.Exit(cmdConnectivity(rest))
 	case "mapreduce", "map-reduce", "compute": os.Exit(cmdMapReduceComplete(rest))
 	case "exec": os.Exit(cmdSessionExec(rest))
+	case "terminal", "term", "console": os.Exit(cmdTerminal(rest))
 	case "keygen": os.Exit(cmdKeygen(rest))
 	case "connect": os.Exit(cmdConnect(rest))
 	case "storage", "storage-adapter": os.Exit(cmdStorage(rest))
@@ -121,10 +123,12 @@ Dynamic session and credentials:
   api                 Query the in-band session API
   api-contract        Validate and evolve standard API description contracts
   origin-runtime      Resolve native, WSL, Docker, Kubernetes, or VM environments
+  container-provider  Discover and route vfs://container orchestration streams
   connectivity        Diagnose optional SSH network underlays
 
 Routed operations:
   exec                Run a named action on a signed node
+  terminal            Connect or reattach to a policy-authorized container PTY
   connect             Open routed TCP
   session-proxy       SOCKS5 CONNECT, BIND, and UDP ASSOCIATE listener
   socks-connect       Proof-authenticated SOCKS5 CONNECT client
@@ -154,7 +158,7 @@ File payloads resume by offset across replacement transport generations.
 
 Configuration and compute:
   mapreduce rules connection chain pubsub compat node-context api-contract
-  origin-runtime 9p-adapter instrument flow deps install push-agent build completion
+  origin-runtime container-provider 9p-adapter instrument flow deps install push-agent build completion
 
 Infrastructure compatibility:
   agent agent-evidence proxy relay server share mount unmount sshfs status

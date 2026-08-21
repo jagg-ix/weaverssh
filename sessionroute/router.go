@@ -263,5 +263,5 @@ func normalRelayError(err error) bool {
 	return err == nil || errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, net.ErrClosed)
 }
 func routableService(service sessionmux.ServiceID) bool {
-	return service == sessionmux.ServiceFS || service == sessionmux.ServiceTCP || service == sessionmux.ServiceUDP || service == sessionmux.ServiceExec || service == sessionmux.ServiceEvents
+	return service == sessionmux.ServiceFS || service == sessionmux.ServiceTCP || service == sessionmux.ServiceUDP || service == sessionmux.ServiceExec || service == sessionmux.ServiceEvents || service == sessionmux.ServiceTerminal
 }

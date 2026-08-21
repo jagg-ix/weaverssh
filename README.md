@@ -175,6 +175,108 @@ wv session-proxy --node alicenode --auth none --listen 127.0.0.1:1080 # SOCKS5 e
 to that node's `--tcp-allow` list. (`wv connect NODE HOST:PORT` pipes a single connection over
 stdio, for use as an `ssh -o ProxyCommand`.)
 
+### Container and orchestration streams
+
+The reserved `vfs://container/ENDPOINT/TARGET/PATH` namespace decouples file
+stream routing from the host's orchestration stack. The same `wv cat` call can
+select Kubernetes/Rancher, CRI, Docker, rootless Podman, or Nomad:
+
+```bash
+wv container-provider status
+wv cat 'vfs://container/rancher-node/pod-abc/data.bin?namespace=jobs&container=worker'
+wv cat 'vfs://container/local/api-1/var/log/app.log?provider=podman'
+```
+
+The current `wv cat vfs://container/...` adapter path is host-local and
+read-only. Remote process composition uses a separate typed ProcessFS attach;
+it does not reinterpret the ordinary `NODE:/path` namespace.
+
+Discovery scores bounded environment, socket, and CLI evidence, then locks one
+provider for the agent/router lifetime by default. Docker uses its local Unix
+Engine socket as a non-TTY fast path. Podman's rootless-capable service uses
+the compatible API for non-TTY streams and its Libpod extension for managed
+PTYs. Both fall back to argv-only CLI execution only when their socket path is
+unavailable. Set
+`WEAVERSSH_CONTAINER_DISCOVERY_MODE=per-request` for dynamic re-probing or
+`WEAVERSSH_CONTAINER_PROVIDER=nomad` to lock a provider explicitly. Other
+built-ins stream through safe argv-only CLI commands; embedders can register
+richer socket/API fast paths behind the same provider interface. See the
+[orchestration stream architecture](docs/architecture/orchestration-stream-providers.md).
+
+The primary non-interactive API is a typed, streaming Exec protocol on the
+authenticated mux. It and the optional synthetic ProcessFS facade share one
+provider-neutral process manager, including action authorization, provider
+pinning, quotas, stream ownership, wait state, and teardown. Enable the final
+node with a signed `compute.exec` capability and an explicit policy, then run a
+named action without exposing a shell RPC:
+
+```bash
+wv attach --node-context node-context.json --public-key-file authority.pub \
+  --container-exec-policy docs/examples/process-policy.json
+wv exec --container \
+  'vfs://container/worker-a/api-0/proc/exec?provider=kubernetes&namespace=staging&container=api' \
+  --input request.bin worker-a inspect-build artifact-42
+```
+
+The request streams stdin/stdout/stderr in distinct bounded frames and carries
+broker-bound identity to the final-node policy. Without `--container`, `wv exec`
+keeps the existing bounded host-action behavior.
+
+For VFS/9P composition, an authorized manager-owned process can also appear at
+`vfs://container/ENDPOINT/TARGET/.wv/processes/SESSION/` with write-only
+`ctl`/`stdin`, read-only `stdout`/`stderr`, and a JSON `status` file. `ctl`
+accepts versioned JSON operations for a policy-named action, signals, terminal
+resize, stdin close, and session close; it never accepts a shell command.
+Portable CLI adapters and the built-in Docker Engine fast path support non-TTY
+stdin/stdout/stderr streaming. Docker's compatibility API has no portable
+per-exec signal or kill operation, so it does not claim signals, TTY, or
+resize. Podman's native Libpod path additionally supports raw PTY output,
+per-exec resize, and forced removal of the exact exec session during terminal
+teardown. Neither built-in advertises per-process signals.
+
+The agent accepts `weaverssh.processfs-open.v1` as typed metadata on the
+existing broker-routed `ServiceFS` channel. Each attach creates one isolated
+synthetic process root containing the five files above; `status` reveals the
+random session ID. The broker supplies source node, session binding, and chain
+digest, and the final node requires both a VFS capability (`vfs.mesh` or
+`file.backhaul`) and an execution capability (`compute.exec`, with legacy
+`compute.mapreduce` compatibility). No port or listener is added, and the
+empty-metadata `NODE:/` OS export is unchanged. Streaming `wv exec --container`
+remains the primary command-line API; the 9P attach is the composable backend
+for embedded VFS clients.
+
+Interactive PTYs use a separate SOCKS/tmux-style `terminal` mux service rather
+than synthetic files. The agent owns the provider PTY, supports generation-safe
+detach/reattach with bounded sequenced replay, carries resize as an out-of-band
+frame, and can emit opt-in hash-chained playback plus signed lifecycle evidence.
+The signed capability is `terminal.session`, and providers must truthfully
+support TTY, stdin, stdout, resize, and termination of the exact remote exec or
+the request fails closed. See the
+[terminal session architecture](docs/architecture/terminal-session-hybrid.md).
+
+The terminal service is disabled until the final node receives a default-deny
+action policy through `wv attach --terminal-policy FILE` or
+`wv session-host --terminal-policy FILE`. The client then uses named actions,
+never command strings:
+
+```bash
+wv terminal connect --provider podman worker-a api-0 debug-shell
+# Ctrl-] detaches while the agent retains the PTY and bounded replay.
+wv terminal reattach SESSION_ID
+wv terminal terminate SESSION_ID
+```
+
+Resume tokens are stored only in owner-readable client state and are redacted
+from `wv terminal inspect --json`. See the restricted
+[terminal policy example](docs/examples/terminal-policy.json). The rootless
+Podman Libpod adapter is the built-in detachable-terminal backend because it
+supports TTY resize and forced removal of the exact exec session. Native
+Kubernetes/Rancher and Nomad adapters retain TTY plus resize for direct
+ProcessFS users, but fail closed for detachable sessions because their APIs do
+not portably guarantee exact-exec termination. Built-in CLI fallbacks, CRI CLI,
+and Docker Engine also reject detachable PTYs. A trusted embedder may inject a
+spawner that provides equivalent PTY ownership, resize, and teardown.
+
 ## Connection profiles and agents
 
 `wv connections scan` autodetects SSH targets from `~/.ssh/config` (with `Include`

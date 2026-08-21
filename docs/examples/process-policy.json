@@ -1,0 +1,27 @@
+{
+  "version": "weaverssh.terminal-policy.v1",
+  "default": "deny",
+  "actions": [
+    {
+      "name": "inspect-build",
+      "executable": "/usr/local/bin/inspect-build",
+      "fixed_args": ["--format", "stream"],
+      "environment": {
+        "LANG": "C.UTF-8"
+      },
+      "principals": ["laptop"],
+      "sources": ["laptop"],
+      "endpoints": ["worker-a"],
+      "targets": ["api-0"],
+      "providers": ["kubernetes"],
+      "options": {
+        "container": ["api"],
+        "namespace": ["staging"]
+      },
+      "max_args": 4,
+      "max_stdin_bytes": 67108864,
+      "timeout": "10m",
+      "recording": "off"
+    }
+  ]
+}

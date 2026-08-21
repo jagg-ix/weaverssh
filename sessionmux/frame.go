@@ -50,11 +50,14 @@ const (
 	// ServiceUDP carries one framed RFC 1928 UDP association. It is appended so
 	// all existing service wire numbers remain stable.
 	ServiceUDP
+	// ServiceTerminal carries the stateful terminal-session protocol. It remains
+	// separate from ServiceFS so PTY lifecycle never leaks into VFS semantics.
+	ServiceTerminal
 )
 
 // Valid reports whether s is a protocol-defined service.
 func (s ServiceID) Valid() bool {
-	return s >= ServiceControl && s <= ServiceUDP
+	return s >= ServiceControl && s <= ServiceTerminal
 }
 
 // String returns the stable wire/debug name for a service.
@@ -72,6 +75,8 @@ func (s ServiceID) String() string {
 		return "events"
 	case ServiceUDP:
 		return "udp"
+	case ServiceTerminal:
+		return "terminal"
 	default:
 		return fmt.Sprintf("service(%d)", uint16(s))
 	}

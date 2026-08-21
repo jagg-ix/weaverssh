@@ -45,6 +45,9 @@ func cmdAttach(args []string) int {
 	udpAllowText := fs.String("udp-allow", "", "comma-separated UDP allow rules for SOCKS5 UDP ASSOCIATE")
 	tcpProofPolicy := fs.String("tcp-proof-policy", os.Getenv(app.EnvSocksProofPolicy), "SOCKS client proof policy used by the final TCP service")
 	tcpRequireProof := fs.Bool("tcp-require-proof", parseBoolEnvironment(os.Getenv(app.EnvTCPRequireProof)), "reject legacy unsigned TCP target metadata")
+	terminalPolicy := fs.String("terminal-policy", os.Getenv(app.EnvTerminalPolicy), "default-deny terminal action policy JSON")
+	terminalRecording := fs.String("terminal-recording", os.Getenv(app.EnvTerminalRecording), "owner-only hash-chained terminal playback NDJSON")
+	containerExecPolicy := fs.String("container-exec-policy", os.Getenv(app.EnvContainerExecPolicy), "default-deny container exec action policy JSON")
 	maxTTL := fs.Duration("max-context-ttl", 10*time.Minute, "maximum accepted local node-context TTL")
 	socketPath := fs.String("socket", "", "stable local Unix broker socket path")
 	statePath := fs.String("state", "", "session state JSON path")
@@ -75,6 +78,10 @@ func cmdAttach(args []string) int {
 	}
 	if *brokerWait <= 0 {
 		fmt.Fprintln(os.Stderr, "attach: --broker-wait must be positive")
+		return 2
+	}
+	if strings.TrimSpace(*terminalRecording) != "" && strings.TrimSpace(*terminalPolicy) == "" {
+		fmt.Fprintln(os.Stderr, "attach: --terminal-recording requires --terminal-policy")
 		return 2
 	}
 
@@ -157,11 +164,15 @@ func cmdAttach(args []string) int {
 		return 2
 	}
 
-	serveLocal := strings.TrimSpace(*root) != "" || !tcpAllow.Empty() || !udpAllow.Empty() || app.MapReduceConfigured()
+	terminalConfigured := strings.TrimSpace(*terminalPolicy) != ""
+	containerExecConfigured := strings.TrimSpace(*containerExecPolicy) != ""
+	serveLocal := strings.TrimSpace(*root) != "" || !tcpAllow.Empty() || !udpAllow.Empty() || app.MapReduceConfigured() || terminalConfigured || containerExecConfigured
 	var local *app.LocalServices
+	var terminalService *app.ConfiguredTerminalService
+	var containerExecService *app.ConfiguredContainerExecService
 	if serveLocal {
 		if strings.TrimSpace(*publicKeyFile) == "" {
-			fmt.Fprintln(os.Stderr, "attach: --public-key-file is required when local fs, tcp, udp, or mapreduce service is configured")
+			fmt.Fprintln(os.Stderr, "attach: --public-key-file is required when any local fs, tcp, udp, programmable exec, or terminal service is configured")
 			return 2
 		}
 		publicKey, err := app.LoadEd25519PublicKeyFile(*publicKeyFile)
@@ -173,6 +184,30 @@ func cmdAttach(args []string) int {
 			SignedContext: signedContext, PublicKey: publicKey, MaxTTL: *maxTTL,
 			Root: *root, ReadOnly: *readOnly, TCPAllow: tcpAllow,
 			TCPRequireProof: *tcpRequireProof, UDPAllow: udpAllow,
+		}
+		if terminalConfigured {
+			terminalService, err = app.NewConfiguredTerminalService(context.Background(), app.TerminalServiceConfig{
+				PolicyPath: *terminalPolicy, RecordingPath: *terminalRecording,
+			})
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "attach: %v\n", err)
+				return 1
+			}
+			defer terminalService.Close()
+			localConfig.TerminalServer = terminalService.Server
+		}
+		if containerExecConfigured {
+			containerExecConfig := app.ContainerExecServiceConfig{PolicyPath: *containerExecPolicy}
+			if terminalService != nil {
+				containerExecConfig.Router = terminalService.Router
+			}
+			containerExecService, err = app.NewConfiguredContainerExecService(context.Background(), containerExecConfig)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "attach: %v\n", err)
+				return 1
+			}
+			defer containerExecService.Close()
+			localConfig.ContainerExecServer = containerExecService.Server
 		}
 		if !tcpAllow.Empty() {
 			if strings.TrimSpace(*tcpProofPolicy) != "" {
@@ -343,24 +378,28 @@ func cmdAttach(args []string) int {
 	}
 	udpEnabled := attached.Local != nil && attached.Local.UDPEnabled()
 	mapReduceEnabled := attached.Local != nil && attached.Local.MapReduceEnabled()
+	terminalEnabled := attached.Local != nil && attached.Local.TerminalEnabled()
+	containerExecEnabled := attached.Local != nil && attached.Local.ContainerExecEnabled()
 	if *jsonOut {
 		payload, _ := json.Marshal(struct {
 			sessionbroker.State
-			WVOrigin         string `json:"wvorigin"`
-			HopDepth         int    `json:"hop_depth,omitempty"`
-			RouteLeaseStore  string `json:"route_lease_store"`
-			LinkID           string `json:"link_id"`
-			Generation       uint64 `json:"generation"`
-			TransportID      string `json:"transport_id"`
-			RegistrationMode string `json:"registration_mode"`
-			TCPRequireProof  bool   `json:"tcp_require_proof"`
-			UDPEnabled       bool   `json:"udp_enabled"`
-			MapReduceEnabled bool   `json:"mapreduce_enabled"`
+			WVOrigin             string `json:"wvorigin"`
+			HopDepth             int    `json:"hop_depth,omitempty"`
+			RouteLeaseStore      string `json:"route_lease_store"`
+			LinkID               string `json:"link_id"`
+			Generation           uint64 `json:"generation"`
+			TransportID          string `json:"transport_id"`
+			RegistrationMode     string `json:"registration_mode"`
+			TCPRequireProof      bool   `json:"tcp_require_proof"`
+			UDPEnabled           bool   `json:"udp_enabled"`
+			MapReduceEnabled     bool   `json:"mapreduce_enabled"`
+			TerminalEnabled      bool   `json:"terminal_enabled"`
+			ContainerExecEnabled bool   `json:"container_exec_enabled"`
 		}{
 			State: state, WVOrigin: wvOrigin, HopDepth: verifiedHop.Depth,
 			RouteLeaseStore: leasePath, LinkID: string(first.Token.LinkID), Generation: first.Token.Generation,
 			TransportID: string(first.Token.TransportID), RegistrationMode: string(attached.RegistrationMode),
-			TCPRequireProof: *tcpRequireProof, UDPEnabled: udpEnabled, MapReduceEnabled: mapReduceEnabled,
+			TCPRequireProof: *tcpRequireProof, UDPEnabled: udpEnabled, MapReduceEnabled: mapReduceEnabled, TerminalEnabled: terminalEnabled, ContainerExecEnabled: containerExecEnabled,
 		})
 		fmt.Println(string(payload))
 	} else {
@@ -382,6 +421,12 @@ func cmdAttach(args []string) int {
 			if mapReduceEnabled {
 				description := attached.Local.MapReduceDescription()
 				fmt.Printf("rule-constrained mapreduce: enabled policy=%s plugins=%d\n", description.PolicySHA256, len(description.Plugins))
+			}
+			if terminalEnabled {
+				fmt.Println("stateful container terminal service: enabled")
+			}
+			if containerExecEnabled {
+				fmt.Println("streaming container exec service: enabled")
 			}
 		}
 		fmt.Printf("transport replacement: enabled=%t broker_wait=%s\n", *reconnect, *brokerWait)

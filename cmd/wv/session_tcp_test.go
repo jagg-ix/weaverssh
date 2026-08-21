@@ -20,7 +20,7 @@ func TestSessionProxyLoopbackPolicy(t *testing.T) {
 }
 
 func TestParseNodeCapabilitiesRequiresExplicitKnownServices(t *testing.T) {
-	capabilities, err := parseNodeCapabilities("socks.proxy,vfs.mesh")
+	capabilities, err := parseNodeCapabilities("socks.proxy,vfs.mesh,compute.mapreduce,compute.exec,terminal.session")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,6 +32,9 @@ func TestParseNodeCapabilitiesRequiresExplicitKnownServices(t *testing.T) {
 		authproof.CapabilityNodeContext,
 		authproof.CapabilitySocksProxy,
 		authproof.CapabilityVFSMesh,
+		authproof.CapabilityMapReduce,
+		authproof.CapabilityContainerExec,
+		authproof.CapabilityTerminalSession,
 	} {
 		if !seen[required] {
 			t.Fatalf("missing capability %s in %v", required, capabilities)

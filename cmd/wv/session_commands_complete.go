@@ -51,6 +51,9 @@ func parseSessionCopyArguments(args []string) (sessionCopyArguments, error) {
 // operand is present.
 func cmdFileVerbComplete(verb string, args []string) int {
 	normalized := normalizeSessionAliasArgs(args)
+	if verb == "cat" && containsContainerStreamURI(normalized) {
+		return cmdContainerStreamCat(normalized, os.Stdout, os.Stderr)
+	}
 	switch verb {
 	case "cp":
 		return cmdSessionCopyComplete(normalized, os.Stdin, os.Stdout, os.Stderr)

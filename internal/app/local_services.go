@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"weaverssh/authproof"
+	"weaverssh/containerexec"
+	"weaverssh/containerstream"
 	"weaverssh/filebackend"
 	"weaverssh/internal/p9svc"
 	"weaverssh/sessionbind"
@@ -21,6 +23,7 @@ import (
 	"weaverssh/sessionudp"
 	"weaverssh/sessionudpproof"
 	"weaverssh/socksproof"
+	"weaverssh/terminalsession"
 )
 
 const (
@@ -53,6 +56,9 @@ type LocalServiceConfig struct {
 	UDPListenPacket  sessionudp.ListenPacketFunc
 	UDPResolve       sessionudp.ResolveFunc
 	UDPReadTimeout   time.Duration
+
+	TerminalServer      *terminalsession.Server
+	ContainerExecServer *containerexec.Server
 }
 
 type LocalServices struct {
@@ -68,6 +74,9 @@ type LocalServices struct {
 	tcpRequireProof bool
 	udp             *sessionudp.Server
 	udpProof        *sessionudpproof.Server
+	terminal        *terminalsession.Server
+	containerExec   *containerexec.Server
+	processFS       *p9svc.ProcessFSServer
 }
 
 func NewLocalServices(config LocalServiceConfig) (*LocalServices, error) {
@@ -204,6 +213,34 @@ func NewLocalServices(config LocalServiceConfig) (*LocalServices, error) {
 		out.services = append(out.services, sessionmux.ServiceUDP)
 	}
 
+	if config.TerminalServer != nil {
+		if config.TerminalServer.Manager == nil {
+			return fail(errors.New("local services: terminal server has no session manager"))
+		}
+		out.terminal = config.TerminalServer
+		out.services = append(out.services, sessionmux.ServiceTerminal)
+	}
+	if config.ContainerExecServer != nil {
+		if config.ContainerExecServer.Manager == nil {
+			return fail(errors.New("local services: container exec server has no process manager"))
+		}
+		out.containerExec = config.ContainerExecServer
+		ensureLocalService(out, sessionmux.ServiceExec)
+		if config.ContainerExecServer.ProcessFS != nil && localServiceCapability(local, sessionmux.ServiceFS) {
+			out.processFS = &p9svc.ProcessFSServer{
+				Filesystem: config.ContainerExecServer.ProcessFS,
+				ResolvePrincipal: func(metadata containerstream.ProcessFSOpenMetadata) (string, error) {
+					if config.ContainerExecServer.ResolvePrincipal == nil { return metadata.SourceNode, nil }
+					return config.ContainerExecServer.ResolvePrincipal(containerexec.OpenMetadata{
+						Protocol: containerexec.OpenProtocolVersion, TargetNode: metadata.TargetNode,
+						SourceNode: metadata.SourceNode, SourceBinding: metadata.SourceBinding, ChainSHA256: metadata.ChainSHA256,
+					})
+				},
+			}
+			ensureLocalService(out, sessionmux.ServiceFS)
+		}
+	}
+
 	for _, service := range out.services {
 		if !localServiceCapability(local, service) {
 			return fail(fmt.Errorf("local services: signed context for %s does not authorize %s", local.CurrentNode, service))
@@ -221,6 +258,9 @@ func (s *LocalServices) TCPProofEnabled() bool { return s != nil && s.tcpProof !
 func (s *LocalServices) TCPProofRequired() bool { return s != nil && s.tcpRequireProof }
 func (s *LocalServices) UDPEnabled() bool { return s != nil && s.udp != nil }
 func (s *LocalServices) UDPProofEnabled() bool { return s != nil && s.udpProof != nil }
+func (s *LocalServices) TerminalEnabled() bool  { return s != nil && s.terminal != nil }
+func (s *LocalServices) ContainerExecEnabled() bool { return s != nil && s.containerExec != nil }
+func (s *LocalServices) ProcessFSEnabled() bool { return s != nil && s.processFS != nil }
 
 func (s *LocalServices) FileBackendDescription() filebackend.Description {
 	if s == nil || s.fileBackend == nil { return filebackend.Description{} }
@@ -249,6 +289,8 @@ func (s *LocalServices) Dispatch(ctx context.Context, accepted sessioncontrol.Ac
 	switch accepted.Stream.Service() {
 	case sessionmux.ServiceFS:
 		switch {
+		case containerstream.IsProcessFSOpenMetadata(accepted.Data):
+			if s.processFS==nil{_=accepted.Stream.Reset();return};go func(){_=s.processFS.ServeBound(ctx,accepted.Stream,accepted.Data)}()
 		case len(accepted.Data)==0:
 			if s.p9==nil{_=accepted.Stream.Reset();return};go func(){_=s.p9.ServeTransportContext(ctx,accepted.Stream)}()
 		case sessionfsops.IsMetadata(accepted.Data):
@@ -270,6 +312,9 @@ func (s *LocalServices) Dispatch(ctx context.Context, accepted sessioncontrol.Ac
 			if s.udp==nil{_=accepted.Stream.Reset();return};go func(){_=s.udp.Serve(ctx,accepted.Stream,accepted.Data)}()
 		default:_=accepted.Stream.Reset()
 		}
+	case sessionmux.ServiceTerminal:
+		if s.terminal == nil || !terminalsession.IsOpenMetadata(accepted.Data) { _=accepted.Stream.Reset(); return }
+		go func(){_=s.terminal.ServeBound(ctx,accepted.Stream,accepted.Data)}()
 	default:_=accepted.Stream.Reset()
 	}
 }
@@ -279,6 +324,8 @@ func localServiceCapability(ctx authproof.NodeContext, service sessionmux.Servic
 	switch service {
 	case sessionmux.ServiceFS:return contains(authproof.CapabilityVFSMesh)||contains(authproof.CapabilityFileBackhaul)
 	case sessionmux.ServiceTCP,sessionmux.ServiceUDP:return contains(authproof.CapabilitySocksProxy)
+	case sessionmux.ServiceExec:return contains(authproof.CapabilityContainerExec)||contains(authproof.CapabilityMapReduce)
+	case sessionmux.ServiceTerminal:return contains(authproof.CapabilityTerminalSession)
 	default:return false
 	}
 }

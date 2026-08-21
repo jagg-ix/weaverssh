@@ -56,15 +56,28 @@ const (
 const defaultMsize uint32 = 65536
 
 // Client is a connected 9P session attached at the served root. It is safe for
-// concurrent use: each request/response exchange holds mu, so a FUSE mount can
-// drive many in-flight syscalls over the single connection.
+// concurrent use: requests are serialized only while their bytes are written,
+// then replies are demultiplexed by 9P tag. A blocking synthetic stdout read
+// therefore does not stall stdin or control requests on the same connection.
 type Client struct {
-	mu      sync.Mutex
-	conn    net.Conn
-	msize   uint32
-	tag     uint16
-	nextFid uint32
-	rootFid uint32
+	stateMu   sync.Mutex
+	writeMu   sync.Mutex
+	conn      net.Conn
+	msize     uint32
+	tag       uint16
+	nextFid   uint32
+	rootFid   uint32
+	pending   map[uint16]chan rpcResult
+	closed    bool
+	readErr   error
+	closeOnce sync.Once
+	closeErr  error
+}
+
+type rpcResult struct {
+	typeID  uint8
+	payload []byte
+	err     error
 }
 
 // DirEntry is one listing entry decoded from a directory read.
@@ -106,13 +119,14 @@ func DialSOCKS(socksAddr, addr string, timeout time.Duration) (*Client, error) {
 }
 
 func attach(conn net.Conn) (*Client, error) {
-	c := &Client{conn: conn, msize: defaultMsize, nextFid: 1, rootFid: 0}
+	c := &Client{conn: conn, msize: defaultMsize, nextFid: 1, rootFid: 0, pending: make(map[uint16]chan rpcResult)}
+	go c.readReplies()
 	if err := c.version(); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 	if err := c.attachRoot(); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, err
 	}
 	return c, nil
@@ -120,8 +134,12 @@ func attach(conn net.Conn) (*Client, error) {
 
 // Close clunks the root fid and closes the connection.
 func (c *Client) Close() error {
-	_ = c.clunk(c.rootFid)
-	return c.conn.Close()
+	c.closeOnce.Do(func() {
+		_ = c.clunk(c.rootFid)
+		c.closeErr = c.conn.Close()
+		c.failPending(net.ErrClosed)
+	})
+	return c.closeErr
 }
 
 func (c *Client) version() error {
@@ -152,8 +170,8 @@ func (c *Client) attachRoot() error {
 }
 
 func (c *Client) allocFid() uint32 {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.stateMu.Lock()
+	defer c.stateMu.Unlock()
 	f := c.nextFid
 	c.nextFid++
 	return f
@@ -534,28 +552,92 @@ func (f *File) Close() error { return f.c.clunk(f.fid) }
 // rpc sends a T-message and returns the matching R-message payload, decoding
 // Rerror into a Go error.
 func (c *Client) rpc(typ uint8, payload []byte) ([]byte, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.tag++
-	tag := c.tag
-	if err := writeMessage(c.conn, typ, tag, payload); err != nil {
-		return nil, err
-	}
-	rtype, rtag, rpayload, err := readMessage(c.conn)
+	tag, response, err := c.beginRPC()
 	if err != nil {
 		return nil, err
 	}
-	if rtag != tag {
-		return nil, fmt.Errorf("tag_mismatch want=%d got=%d", tag, rtag)
+	c.writeMu.Lock()
+	err = writeMessage(c.conn, typ, tag, payload)
+	c.writeMu.Unlock()
+	if err != nil {
+		_ = c.conn.Close()
+		c.failPending(err)
+		return nil, err
 	}
-	if rtype == rError {
-		msg, _, _ := unpackString(rpayload, 0)
+	result := <-response
+	if result.err != nil {
+		return nil, result.err
+	}
+	if result.typeID == rError {
+		msg, _, _ := unpackString(result.payload, 0)
 		return nil, fmt.Errorf("9p error: %s", msg)
 	}
-	if rtype != expectedReply(typ) {
-		return nil, fmt.Errorf("unexpected reply type %d for request %d", rtype, typ)
+	if result.typeID != expectedReply(typ) {
+		return nil, fmt.Errorf("unexpected reply type %d for request %d", result.typeID, typ)
 	}
-	return rpayload, nil
+	return result.payload, nil
+}
+
+func (c *Client) beginRPC() (uint16, <-chan rpcResult, error) {
+	c.stateMu.Lock()
+	defer c.stateMu.Unlock()
+	if c.closed {
+		if c.readErr != nil {
+			return 0, nil, c.readErr
+		}
+		return 0, nil, net.ErrClosed
+	}
+	for attempts := 0; attempts < 1<<16; attempts++ {
+		c.tag++
+		if _, exists := c.pending[c.tag]; exists {
+			continue
+		}
+		response := make(chan rpcResult, 1)
+		c.pending[c.tag] = response
+		return c.tag, response, nil
+	}
+	return 0, nil, fmt.Errorf("9p request tag space exhausted")
+}
+
+func (c *Client) readReplies() {
+	for {
+		typeID, tag, payload, err := readMessage(c.conn)
+		if err != nil {
+			c.failPending(err)
+			return
+		}
+		c.stateMu.Lock()
+		response, ok := c.pending[tag]
+		if ok {
+			delete(c.pending, tag)
+		}
+		c.stateMu.Unlock()
+		if !ok {
+			_ = c.conn.Close()
+			c.failPending(fmt.Errorf("unexpected 9p response tag %d", tag))
+			return
+		}
+		response <- rpcResult{typeID: typeID, payload: payload}
+	}
+}
+
+func (c *Client) failPending(err error) {
+	if err == nil {
+		err = net.ErrClosed
+	}
+	c.stateMu.Lock()
+	if c.closed {
+		c.stateMu.Unlock()
+		return
+	}
+	c.closed = true
+	c.readErr = err
+	pending := c.pending
+	c.pending = make(map[uint16]chan rpcResult)
+	c.stateMu.Unlock()
+	for _, response := range pending {
+		response <- rpcResult{err: err}
+	}
 }
 
 func expectedReply(t uint8) uint8 {

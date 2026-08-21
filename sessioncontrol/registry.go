@@ -147,9 +147,9 @@ func normalizeServices(ctx authproof.NodeContext, services []sessionmux.ServiceI
 	return out, nil
 }
 
-// ServiceExec and ServiceEvents are programmable routed services. They share the
-// existing compute.mapreduce signed capability for backward-compatible node
-// contexts, but remain independently default-deny at their final-node policy.
+// ServiceExec accepts the legacy compute.mapreduce capability or the narrower
+// compute.exec capability. Events remain map/reduce-gated; every protocol is
+// independently default-deny at its final-node policy.
 func serviceAuthorizedByCapabilities(capabilities []string, service sessionmux.ServiceID) bool {
 	switch service {
 	case sessionmux.ServiceControl:
@@ -158,8 +158,12 @@ func serviceAuthorizedByCapabilities(capabilities []string, service sessionmux.S
 		return containsCapability(capabilities, authproof.CapabilityVFSMesh) || containsCapability(capabilities, authproof.CapabilityFileBackhaul)
 	case sessionmux.ServiceTCP, sessionmux.ServiceUDP:
 		return containsCapability(capabilities, authproof.CapabilitySocksProxy)
-	case sessionmux.ServiceExec, sessionmux.ServiceEvents:
+	case sessionmux.ServiceExec:
+		return containsCapability(capabilities, authproof.CapabilityMapReduce) || containsCapability(capabilities, authproof.CapabilityContainerExec)
+	case sessionmux.ServiceEvents:
 		return containsCapability(capabilities, authproof.CapabilityMapReduce)
+	case sessionmux.ServiceTerminal:
+		return containsCapability(capabilities, authproof.CapabilityTerminalSession)
 	default:
 		return false
 	}

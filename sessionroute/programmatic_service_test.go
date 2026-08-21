@@ -7,7 +7,7 @@ import (
 )
 
 func TestProgrammableServicesAreRoutable(t *testing.T) {
-	for _, service := range []sessionmux.ServiceID{sessionmux.ServiceExec, sessionmux.ServiceEvents} {
+	for _, service := range []sessionmux.ServiceID{sessionmux.ServiceExec, sessionmux.ServiceEvents, sessionmux.ServiceTerminal} {
 		if !routableService(service) {
 			t.Fatalf("service %s is not routable", service)
 		}

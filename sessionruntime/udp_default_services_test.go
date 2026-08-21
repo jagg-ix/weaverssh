@@ -15,6 +15,7 @@ func TestDynamicSessionDefaultsIncludeUDP(t *testing.T) {
 		sessionmux.ServiceExec,
 		sessionmux.ServiceEvents,
 		sessionmux.ServiceUDP,
+		sessionmux.ServiceTerminal,
 	} {
 		if !config.AllowedServices[service] {
 			t.Fatalf("default dynamic-session policy does not allow %s", service)
@@ -30,6 +31,9 @@ func TestDynamicSessionPreservesExplicitServicePolicy(t *testing.T) {
 	config := withDefaultServices(sessionmux.Config{AllowedServices: explicit})
 	if config.AllowedServices[sessionmux.ServiceUDP] {
 		t.Fatal("explicit restrictive service policy was widened with UDP")
+	}
+	if config.AllowedServices[sessionmux.ServiceTerminal] {
+		t.Fatal("explicit restrictive service policy was widened with terminal")
 	}
 	if len(config.AllowedServices) != len(explicit) {
 		t.Fatalf("explicit policy changed: %v", config.AllowedServices)

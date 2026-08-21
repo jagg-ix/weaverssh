@@ -30,6 +30,7 @@ func RunSessionHost() {
 	var (
 		root, contextFile, publicKeyFile, listenAddress                     string
 		tcpAllowText, udpAllowText, tcpProofPolicy, brokerSocket, statePath string
+		terminalPolicy, terminalRecording, containerExecPolicy              string
 		routeRegistryPath                                                   string
 		proofMode, proofSecurity, proofPeerID                               string
 		proofPublicKey, proofPublicFile, proofChain                         string
@@ -49,6 +50,9 @@ func RunSessionHost() {
 	flag.StringVar(&udpAllowText, "udp-allow", "", "comma-separated local UDP allow rules for SOCKS5 UDP ASSOCIATE")
 	flag.StringVar(&tcpProofPolicy, "tcp-proof-policy", os.Getenv(EnvSocksProofPolicy), "SOCKS client proof policy used by the final TCP service")
 	flag.BoolVar(&tcpRequireProof, "tcp-require-proof", envBoolValue(os.Getenv(EnvTCPRequireProof)), "reject legacy unsigned TCP target metadata")
+	flag.StringVar(&terminalPolicy, "terminal-policy", os.Getenv(EnvTerminalPolicy), "default-deny terminal action policy JSON")
+	flag.StringVar(&terminalRecording, "terminal-recording", os.Getenv(EnvTerminalRecording), "owner-only hash-chained terminal playback NDJSON")
+	flag.StringVar(&containerExecPolicy, "container-exec-policy", os.Getenv(EnvContainerExecPolicy), "default-deny container exec action policy JSON")
 	flag.StringVar(&brokerSocket, "socket", "", "stable local Unix broker socket path")
 	flag.StringVar(&statePath, "state", "", "active-session state JSON path")
 	flag.StringVar(&routeRegistryPath, "route-registry", os.Getenv("WEAVERSSH_ROUTE_REGISTRY"), "base path for local multi-session route registries")
@@ -94,9 +98,14 @@ func RunSessionHost() {
 		log.Fatalf("session-host: udp allowlist: %v", err)
 	}
 	computeConfigured := MapReduceConfigured()
-	controlOnly := recursive && strings.TrimSpace(root) == "" && tcpAllow.Empty() && udpAllow.Empty() && !computeConfigured
-	if strings.TrimSpace(root) == "" && tcpAllow.Empty() && udpAllow.Empty() && !recursive && !computeConfigured {
-		log.Fatal("session-host requires at least --root, --tcp-allow, --udp-allow, or mapreduce configuration unless --recursive control-only mode is used")
+	terminalConfigured := strings.TrimSpace(terminalPolicy) != ""
+	containerExecConfigured := strings.TrimSpace(containerExecPolicy) != ""
+	controlOnly := recursive && strings.TrimSpace(root) == "" && tcpAllow.Empty() && udpAllow.Empty() && !computeConfigured && !terminalConfigured && !containerExecConfigured
+	if strings.TrimSpace(root) == "" && tcpAllow.Empty() && udpAllow.Empty() && !recursive && !computeConfigured && !terminalConfigured && !containerExecConfigured {
+		log.Fatal("session-host requires at least --root, --tcp-allow, --udp-allow, programmable exec, or --terminal-policy unless --recursive control-only mode is used")
+	}
+	if strings.TrimSpace(terminalRecording) != "" && !terminalConfigured {
+		log.Fatal("session-host: --terminal-recording requires --terminal-policy")
 	}
 	if tcpRequireProof && !tcpAllow.Empty() && strings.TrimSpace(tcpProofPolicy) == "" {
 		log.Fatal("session-host: --tcp-require-proof requires --tcp-proof-policy")
@@ -133,6 +142,28 @@ func RunSessionHost() {
 	publicKey, err := LoadEd25519PublicKeyFile(publicKeyFile)
 	if err != nil {
 		log.Fatalf("session-host: load public key: %v", err)
+	}
+	var terminalService *ConfiguredTerminalService
+	if terminalConfigured {
+		terminalService, err = NewConfiguredTerminalService(context.Background(), TerminalServiceConfig{
+			PolicyPath: terminalPolicy, RecordingPath: terminalRecording,
+		})
+		if err != nil {
+			log.Fatalf("session-host: %v", err)
+		}
+		defer terminalService.Close()
+	}
+	var containerExecService *ConfiguredContainerExecService
+	if containerExecConfigured {
+		containerExecConfig := ContainerExecServiceConfig{PolicyPath: containerExecPolicy}
+		if terminalService != nil {
+			containerExecConfig.Router = terminalService.Router
+		}
+		containerExecService, err = NewConfiguredContainerExecService(context.Background(), containerExecConfig)
+		if err != nil {
+			log.Fatalf("session-host: %v", err)
+		}
+		defer containerExecService.Close()
 	}
 
 	defaultSocket, defaultState, err := sessionbroker.DefaultPaths()
@@ -205,6 +236,12 @@ func RunSessionHost() {
 		UDPAllow:        udpAllow,
 		ControlOnly:     controlOnly,
 		RouteStorePath:  routeRegistryPath,
+	}
+	if terminalService != nil {
+		hostConfig.TerminalServer = terminalService.Server
+	}
+	if containerExecService != nil {
+		hostConfig.ContainerExecServer = containerExecService.Server
 	}
 	if !tcpAllow.Empty() && strings.TrimSpace(tcpProofPolicy) != "" {
 		verifier, err := LoadSocksProofVerifier(tcpProofPolicy)
@@ -424,8 +461,8 @@ func RunSessionHost() {
 	log.Printf("dynamic session host display=%s listener=%s", displayName, listener.Addr())
 	log.Printf("%s=%s local broker=unix:%s state=%s route_leases=%s link=%s api=in-band static_forwarding_ports=none",
 		EnvWVOrigin, wvOrigin, brokerSocket, statePath, leasePath, linkRouter.LinkID())
-	log.Printf("filesystem root=%s read_only=%t tcp_allow=%q udp_allow=%q tcp_proof=%t tcp_proof_required=%t mapreduce=%t control_only=%t reconnect=%t",
-		root, readOnly, tcpAllowText, udpAllowText, hostConfig.TCPProofVerifier != nil, tcpRequireProof, host.local.MapReduceEnabled(), controlOnly, reconnect)
+	log.Printf("filesystem root=%s read_only=%t tcp_allow=%q udp_allow=%q tcp_proof=%t tcp_proof_required=%t mapreduce=%t container_exec=%t processfs=%t terminal=%t control_only=%t reconnect=%t",
+		root, readOnly, tcpAllowText, udpAllowText, hostConfig.TCPProofVerifier != nil, tcpRequireProof, host.local.MapReduceEnabled(), host.local.ContainerExecEnabled(), host.local.ProcessFSEnabled(), host.local.TerminalEnabled(), controlOnly, reconnect)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {

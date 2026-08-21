@@ -26,6 +26,8 @@ const (
 	CapabilityVFSMesh          = "vfs.mesh"
 	CapabilityNodeContext      = "node.context"
 	CapabilityMapReduce        = "compute.mapreduce"
+	CapabilityContainerExec    = "compute.exec"
+	CapabilityTerminalSession  = "terminal.session"
 )
 
 var (
@@ -350,7 +352,7 @@ func hasCapability(caps []string, required string) bool {
 
 func knownCapability(cap string) bool {
 	switch cap {
-	case CapabilityX11Relay, CapabilityWebSocketUpgrade, CapabilitySocksProxy, CapabilityFileBackhaul, CapabilityVFSMesh, CapabilityNodeContext, CapabilityMapReduce:
+	case CapabilityX11Relay, CapabilityWebSocketUpgrade, CapabilitySocksProxy, CapabilityFileBackhaul, CapabilityVFSMesh, CapabilityNodeContext, CapabilityMapReduce, CapabilityContainerExec, CapabilityTerminalSession:
 		return true
 	default:
 		return false

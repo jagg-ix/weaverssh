@@ -150,6 +150,7 @@ func withDefaultServices(config sessionmux.Config) sessionmux.Config {
 		sessionmux.ServiceExec:    true,
 		sessionmux.ServiceEvents:  true,
 		sessionmux.ServiceUDP:     true,
+		sessionmux.ServiceTerminal: true,
 	}
 	return config
 }

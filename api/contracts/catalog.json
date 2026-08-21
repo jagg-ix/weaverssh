@@ -1,7 +1,7 @@
 {
   "version": "weaverssh.api-contract-catalog.v1",
   "name": "weaverssh-api",
-  "revision": "1.6.0",
+  "revision": "1.7.0",
   "contracts": [
     {
       "id": "session-api-envelope",
@@ -195,6 +195,16 @@
       "stability": "beta",
       "compatibility": "backward",
       "owner": "luksruntime",
+      "media_types": ["application/json", "application/schema+json"]
+    },
+    {
+      "id": "terminal-policy",
+      "contract_version": "1.0.0",
+      "kind": "json-schema",
+      "path": "../schema/terminal-policy.v1.schema.json",
+      "stability": "experimental",
+      "compatibility": "backward",
+      "owner": "terminalsession",
       "media_types": ["application/json", "application/schema+json"]
     },
     {

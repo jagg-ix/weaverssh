@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"weaverssh/authproof"
+	"weaverssh/containerexec"
 	"weaverssh/sessioncontrol"
 	"weaverssh/sessionevents"
 	"weaverssh/sessionexec"
@@ -84,7 +85,7 @@ func hasProgrammableCapability(local *LocalServices) bool {
 		return false
 	}
 	for _, capability := range local.Context.Capabilities {
-		if strings.TrimSpace(capability) == authproof.CapabilityMapReduce {
+		if strings.TrimSpace(capability) == authproof.CapabilityMapReduce || strings.TrimSpace(capability) == authproof.CapabilityContainerExec {
 			return true
 		}
 	}
@@ -138,6 +139,14 @@ func dispatchExecEvents(ctx context.Context, local *LocalServices, accepted sess
 	}
 	switch accepted.Stream.Service() {
 	case sessionmux.ServiceExec:
+		if containerexec.IsOpenMetadata(accepted.Data) {
+			if local == nil || local.containerExec == nil {
+				_ = accepted.Stream.Reset()
+				return true
+			}
+			go func() { _ = local.containerExec.ServeBound(ctx, accepted.Stream, accepted.Data) }()
+			return true
+		}
 		if !sessionexec.IsOpenMetadata(accepted.Data) {
 			return false
 		}
@@ -162,6 +171,15 @@ func dispatchExecEvents(ctx context.Context, local *LocalServices, accepted sess
 	default:
 		return false
 	}
+}
+
+func openLocalContainerExec(ctx context.Context, local *LocalServices, metadata []byte) (io.ReadWriteCloser, error) {
+	if local == nil || local.containerExec == nil {
+		return nil, errors.New("containerexec: local server unavailable")
+	}
+	server, client := net.Pipe()
+	go func() { _ = local.containerExec.ServeBound(ctx, server, metadata) }()
+	return client, nil
 }
 
 func openLocalExec(ctx context.Context, local *LocalServices, metadata []byte) (io.ReadWriteCloser, error) {

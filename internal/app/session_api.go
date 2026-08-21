@@ -126,6 +126,15 @@ func NewSessionAPIServer(config SessionAPIConfig) *sessionapi.Server {
 		if config.Local != nil && config.Local.ExecEnabled() {
 			features = append(features, "exec.command.v1", "exec.policy.v1", "exec.provenance.v1")
 		}
+		if config.Local != nil && config.Local.ContainerExecEnabled() {
+			features = append(features, "container.exec-stream.v1", "container.process-manager.v1", "container.processfs-facade.v1", "exec.provenance.v1")
+		}
+		if config.Local != nil && config.Local.ProcessFSEnabled() {
+			features = append(features, "container.processfs.p9.v1")
+		}
+		if config.Local != nil && config.Local.TerminalEnabled() {
+			features = append(features, "terminal.session.v1", "terminal.reattach.v1", "terminal.replay.v1")
+		}
 		if config.Local != nil && config.Local.EventsEnabled() {
 			features = append(features, "events.routed.v1", "events.policy.v1", "events.provenance.v1")
 		}

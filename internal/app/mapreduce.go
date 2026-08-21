@@ -11,6 +11,8 @@ import (
 	"sync"
 
 	"weaverssh/authproof"
+	"weaverssh/containerexec"
+	"weaverssh/containerstream"
 	"weaverssh/mapreduce"
 	"weaverssh/sessionbroker"
 	"weaverssh/sessioncontrol"
@@ -18,6 +20,7 @@ import (
 	"weaverssh/sessionexec"
 	"weaverssh/sessionmux"
 	"weaverssh/sessionroute"
+	"weaverssh/terminalsession"
 )
 
 const (
@@ -155,6 +158,24 @@ func openLocalMapReduce(ctx context.Context, local *LocalServices, metadata []by
 	return client, nil
 }
 
+func openLocalTerminal(ctx context.Context, local *LocalServices, metadata []byte) (io.ReadWriteCloser, error) {
+	if local == nil || local.terminal == nil {
+		return nil, errors.New("terminalsession: local terminal server unavailable")
+	}
+	server, client := net.Pipe()
+	go func() { _ = local.terminal.ServeBound(ctx, server, metadata) }()
+	return client, nil
+}
+
+func openLocalProcessFS(ctx context.Context, local *LocalServices, metadata []byte) (io.ReadWriteCloser, error) {
+	if local == nil || local.processFS == nil {
+		return nil, errors.New("ProcessFS: local server unavailable")
+	}
+	server, client := net.Pipe()
+	go func() { _ = local.processFS.ServeBound(ctx, server, metadata) }()
+	return client, nil
+}
+
 // OpenBrokerTarget binds source provenance at the same-user broker before any
 // programmable service crosses a session. Forwarders preserve the original
 // source/binding/chain and can only rewrite the concrete target.
@@ -162,7 +183,8 @@ func OpenBrokerTarget(ctx context.Context, local *LocalServices, router *session
 	if router == nil {
 		return nil, errors.New("programmable service router is required")
 	}
-	if request.Service != sessionmux.ServiceExec && request.Service != sessionmux.ServiceEvents {
+	processFSOpen := request.Service == sessionmux.ServiceFS && containerstream.IsProcessFSOpenMetadata(request.Data)
+	if request.Service != sessionmux.ServiceExec && request.Service != sessionmux.ServiceEvents && request.Service != sessionmux.ServiceTerminal && !processFSOpen {
 		return router.OpenLocal(ctx, request.Node, request.Service, request.Data)
 	}
 	target, _, err := sessionroute.ResolveNode(nodeContext, request.Node)
@@ -170,8 +192,29 @@ func OpenBrokerTarget(ctx context.Context, local *LocalServices, router *session
 		return nil, err
 	}
 	switch request.Service {
+	case sessionmux.ServiceFS:
+		if !processFSOpen || !processFSBrokerAuthorized(nodeContext) {
+			return nil, errors.New("ProcessFS requires signed VFS and container-exec capabilities")
+		}
+		bound, err := containerstream.BindProcessFSSource(request.Data, nodeContext.CurrentNode, binding, nodeContext.ChainSHA256, target)
+		if err != nil {
+			return nil, err
+		}
+		if target == nodeContext.CurrentNode {
+			return openLocalProcessFS(ctx, local, bound)
+		}
+		return router.OpenLocal(ctx, target, sessionmux.ServiceFS, bound)
 	case sessionmux.ServiceExec:
 		switch {
+		case containerexec.IsOpenMetadata(request.Data):
+			bound, err := containerexec.BindSource(request.Data, nodeContext.CurrentNode, binding, nodeContext.ChainSHA256, target)
+			if err != nil {
+				return nil, err
+			}
+			if target == nodeContext.CurrentNode {
+				return openLocalContainerExec(ctx, local, bound)
+			}
+			return router.OpenLocal(ctx, target, sessionmux.ServiceExec, bound)
 		case mapreduce.IsOpenMetadata(request.Data):
 			bound, err := mapreduce.BindSource(request.Data, nodeContext.CurrentNode, binding, nodeContext.ChainSHA256, target)
 			if err != nil {
@@ -191,7 +234,7 @@ func OpenBrokerTarget(ctx context.Context, local *LocalServices, router *session
 			}
 			return router.OpenLocal(ctx, target, sessionmux.ServiceExec, bound)
 		default:
-			return nil, errors.New("ServiceExec requires typed mapreduce or exec metadata")
+			return nil, errors.New("ServiceExec requires typed container-exec, mapreduce, or host-exec metadata")
 		}
 	case sessionmux.ServiceEvents:
 		if !sessionevents.IsOpenMetadata(request.Data) {
@@ -205,7 +248,32 @@ func OpenBrokerTarget(ctx context.Context, local *LocalServices, router *session
 			return openLocalEvents(ctx, local, bound)
 		}
 		return router.OpenLocal(ctx, target, sessionmux.ServiceEvents, bound)
+	case sessionmux.ServiceTerminal:
+		if !terminalsession.IsOpenMetadata(request.Data) {
+			return nil, errors.New("ServiceTerminal requires weaverssh.terminal-open.v1 metadata")
+		}
+		bound, err := terminalsession.BindSource(request.Data, nodeContext.CurrentNode, binding, nodeContext.ChainSHA256, target)
+		if err != nil {
+			return nil, err
+		}
+		if target == nodeContext.CurrentNode {
+			return openLocalTerminal(ctx, local, bound)
+		}
+		return router.OpenLocal(ctx, target, sessionmux.ServiceTerminal, bound)
 	default:
 		return nil, errors.New("unsupported programmable service")
 	}
+}
+
+func processFSBrokerAuthorized(ctx authproof.NodeContext) bool {
+	var vfs, exec bool
+	for _, capability := range ctx.Capabilities {
+		switch strings.TrimSpace(capability) {
+		case authproof.CapabilityVFSMesh, authproof.CapabilityFileBackhaul:
+			vfs = true
+		case authproof.CapabilityContainerExec, authproof.CapabilityMapReduce:
+			exec = true
+		}
+	}
+	return vfs && exec
 }

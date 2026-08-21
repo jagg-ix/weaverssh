@@ -1,0 +1,29 @@
+{
+  "version": "weaverssh.terminal-policy.v1",
+  "default": "deny",
+  "actions": [
+    {
+      "name": "debug-shell",
+      "executable": "/bin/bash",
+      "fixed_args": ["--noprofile", "--norc"],
+      "environment": {
+        "LANG": "C.UTF-8"
+      },
+      "principals": ["laptop"],
+      "sources": ["laptop"],
+      "endpoints": ["worker-a"],
+      "targets": ["api-0"],
+      "providers": ["kubernetes"],
+      "options": {
+        "container": ["api"],
+        "namespace": ["staging"]
+      },
+      "max_args": 4,
+      "max_stdin_bytes": 67108864,
+      "timeout": "2h",
+      "detach_ttl": "1h",
+      "replay_bytes": 4194304,
+      "recording": "required"
+    }
+  ]
+}
