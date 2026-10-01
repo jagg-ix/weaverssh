@@ -1,0 +1,40 @@
+name: event delivery core
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'eventdelivery/**'
+      - '.github/workflows/event-delivery.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'eventdelivery/**'
+      - '.github/workflows/event-delivery.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  focused-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23.2'
+          cache: false
+      - name: Vet portable delivery core
+        working-directory: eventdelivery
+        env:
+          GOWORK: 'off'
+          GO111MODULE: 'off'
+        run: go vet .
+      - name: Test delivery gates and concurrency
+        working-directory: eventdelivery
+        env:
+          GOWORK: 'off'
+          GO111MODULE: 'off'
+          CGO_ENABLED: '1'
+        run: go test -race -count=1 -timeout=60s -v .
